@@ -22,11 +22,13 @@ can stay in its usual signal chain.
 
 ## Current stage
 
-The live prototype supports a basic camera signal → MIDI control mapping. Try it
-with a MIDI-capable DAW and an effect parameter you have mapped. This is an early
-musician test build; real equipment compatibility and physical response latency
-are still being evaluated. The demo reports software timings only and does not
-claim measured end-to-end latency.
+Patchcraft is in an early open testing phase. The live prototype supports a
+basic camera signal → MIDI control mapping for a MIDI-capable DAW and mapped
+effect parameter. We are gathering hands-on feedback about setup, reliability
+and how the visual controls feel while playing, then using it to shape the next
+iteration. Real equipment compatibility and physical response latency are still
+being evaluated; the demo reports software timings only, not measured end-to-end
+latency.
 
 ## Where we're headed
 
