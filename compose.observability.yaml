@@ -1,0 +1,94 @@
+# Optional local Langfuse stack, adapted from the upstream self-hosting Compose.
+# Development credentials only; all exposed ports bind loopback.
+services:
+  langfuse-web:
+    image: docker.langfuse.com/langfuse/langfuse:4
+    profiles: [observability]
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: &lf-dependencies
+      lf-postgres: {condition: service_healthy}
+      lf-redis: {condition: service_healthy}
+      lf-clickhouse: {condition: service_healthy}
+      lf-minio: {condition: service_healthy}
+    environment: &lf-environment
+      DATABASE_URL: postgresql://langfuse:local-only@lf-postgres:5432/langfuse
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${LF_SESSION_SECRET:-local-development-session-secret-change-before-sharing}
+      SALT: ${LF_SALT:-local-development-salt}
+      ENCRYPTION_KEY: ${LF_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      TELEMETRY_ENABLED: "false"
+      CLICKHOUSE_URL: http://lf-clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://lf-clickhouse:9000
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: local-only
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      REDIS_HOST: lf-redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: local-only
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: local-only-storage
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://lf-minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: local-only-storage
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9090
+      LANGFUSE_S3_MEDIA_UPLOAD_INTERNAL_ENDPOINT: http://lf-minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  langfuse-worker:
+    image: docker.langfuse.com/langfuse/langfuse-worker:4
+    profiles: [observability]
+    depends_on: *lf-dependencies
+    environment:
+      <<: *lf-environment
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://lf-minio:9000
+  lf-postgres:
+    image: postgres:17
+    profiles: [observability]
+    environment: {POSTGRES_USER: langfuse, POSTGRES_PASSWORD: local-only, POSTGRES_DB: langfuse}
+    volumes: ["lf-postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  lf-redis:
+    image: redis:7
+    profiles: [observability]
+    command: ["redis-server", "--requirepass", "local-only", "--maxmemory-policy", "noeviction"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "local-only", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  lf-clickhouse:
+    image: clickhouse/clickhouse-server:26.3.62.3
+    profiles: [observability]
+    user: "101:101"
+    environment: {CLICKHOUSE_DB: default, CLICKHOUSE_USER: langfuse, CLICKHOUSE_PASSWORD: local-only}
+    volumes: ["lf-clickhouse:/var/lib/clickhouse"]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  lf-minio:
+    image: cgr.dev/chainguard/minio
+    profiles: [observability]
+    entrypoint: sh
+    command: ["-c", "mkdir -p /data/langfuse && minio server --address ':9000' /data"]
+    environment: {MINIO_ROOT_USER: langfuse, MINIO_ROOT_PASSWORD: local-only-storage}
+    ports: ["127.0.0.1:9090:9000"]
+    volumes: ["lf-minio:/data"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  lf-postgres:
+  lf-clickhouse:
+  lf-minio:

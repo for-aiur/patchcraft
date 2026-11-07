@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.json","compilerOptions":{"types":["node"]},"include":["server","src/authoring","src/control","src/midi/rig.ts"]}

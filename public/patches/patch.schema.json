@@ -1,0 +1,479 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://patchcraft-m1.pages.dev/patches/patch.schema.json",
+  "title": "Patchcraft M2 control patch v1",
+  "description": "Runtime validation also enforces acyclicity, port compatibility, unique node IDs, positive calibration/mapping ranges, ROI extents and MIDI range ordering.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "name",
+    "nodes",
+    "edges",
+    "camera",
+    "midi"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 64,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "camera"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "signal"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "signal": {
+                    "enum": [
+                      "brightness",
+                      "red",
+                      "green",
+                      "blue",
+                      "color",
+                      "motion"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "normalize"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "min",
+                  "max"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "min": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "max": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "clamp"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "min",
+                  "max"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "min": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "max": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "map"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "min",
+                  "max"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "min": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "max": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "smooth"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "ms"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "ms": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2000
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "threshold"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "low",
+                  "high"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "low": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  },
+                  "high": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "rateLimit"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "hz"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "hz": {
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 60
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "effect"
+              },
+              "params": {
+                "type": "object",
+                "required": [
+                  "parameter"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "parameter": {
+                    "enum": [
+                      "cutoff",
+                      "drive",
+                      "tremolo",
+                      "delay",
+                      "reverb"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "params"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]{1,40}$"
+              },
+              "kind": {
+                "const": "output"
+              },
+              "params": {
+                "type": "object",
+                "required": [],
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        ]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "type": {
+            "const": "control"
+          }
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "required": [
+        "roi",
+        "target",
+        "tolerance",
+        "fps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "roi": {
+          "type": "object",
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "width": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            },
+            "height": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 1
+            }
+          }
+        },
+        "target": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "tolerance": {
+          "type": "number",
+          "minimum": 0.01,
+          "maximum": 1
+        },
+        "fps": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 60
+        }
+      }
+    },
+    "midi": {
+      "type": "object",
+      "required": [
+        "channel",
+        "cc",
+        "hz",
+        "min",
+        "max",
+        "portHint"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "channel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "cc": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 119
+        },
+        "hz": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 60
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "portHint": {
+          "type": "string",
+          "maxLength": 200
+        }
+      }
+    }
+  }
+}
