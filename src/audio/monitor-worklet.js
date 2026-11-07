@@ -1,4 +1,4 @@
-// EVR-94 / EVR-98. Fixed-size processing; telemetry is aggregated once per second.
+// Fixed-size processing; telemetry is aggregated once per second.
 export class MonitorProcessor extends AudioWorkletProcessor {
   constructor() {
     super();

@@ -1,4 +1,4 @@
-// Shared by the audio engine and deterministic parameter tests (EVR-94).
+// Shared by the audio engine and deterministic parameter tests.
 export function bounded(value, min, max, fallback) {
   return Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
 }

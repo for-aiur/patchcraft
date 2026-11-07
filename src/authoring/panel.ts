@@ -11,7 +11,7 @@ export class AuthorPanel {
   private adaptive?:{envelope:Envelope[];until:number;goal:string;revision:number};
   private timer?:ReturnType<typeof setTimeout>;
   constructor(private context:Context){
-    this.el('author-panel').innerHTML=`<div class="section-title"><span>M4 / CONVERSATIONAL PATCH LAB</span><span id="agent-state" class="badge">GEMINI</span></div>
+    this.el('author-panel').innerHTML=`<div class="section-title"><span>CONVERSATIONAL PATCH LAB</span><span id="agent-state" class="badge">GEMINI</span></div>
 <h2>Describe your sound.</h2><p>Build the entire camera → processors → effects arrangement in conversation. Review each proposal, then apply it. Outputs require explicit rearming.</p>
 <label><input id="agent-consent" type="checkbox"> Send my text, patch and approved targets to Google Gemini. Camera frames and audio stay here.</label>
 <label><input id="agent-trace" type="checkbox"> Allow this conversation and patch context in configured Langfuse traces (optional).</label>

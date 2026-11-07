@@ -1,9 +1,9 @@
 import './style.css';
 import { AudioEngine } from './audio/engine';
 
-// EVR-94 / EVR-98 / EVR-107: a single-purpose local audio test surface.
+// A single-purpose local audio test surface.
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<header><a class="brand" href="/">◈ PATCHCRAFT <span>YNY LABS</span></a><a href="/vision.html">M2 · Camera → MIDI lab ↗</a><span class="tag">LIVE AUDIO LAB / 01</span></header>
+<header><a class="brand" href="/">◈ PATCHCRAFT <span>YNY LABS</span></a><a href="/vision.html">Camera → MIDI controls ↗</a><span class="tag">LIVE AUDIO</span></header>
 <main>
   <div class="intro"><p class="eyebrow">PLUG IN. PLAY. MEASURE.</p><h1>Your guitar.<br><em>A clearer signal.</em></h1>
   <p>Test a live browser audio chain with your own interface.<br>Audio stays on this device.</p></div>
@@ -46,7 +46,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <li>For physical latency, split an external test pulse into a reference recorder channel and Patchcraft input. Record Patchcraft output on a second, synchronized channel.</li>
     <li>With monitoring isolated from the reference recorder, compare pulse onset sample positions. Repeat at least 10 times: Δ samples / recorder sample rate × 1000 = ms.</li></ol>
     <p class="hint">Never connect speaker-level outputs to interface inputs. Use line-level routing and leave phantom power off. A feedback loop can be loud: consult the procedure before wiring.</p>
-    <a href="/docs/loopback.md" target="_blank" rel="noopener">Read the full loopback & Erdem test procedure ↗</a>
+    <a href="/docs/loopback.md" target="_blank" rel="noopener">Read the physical loopback test procedure ↗</a>
   </section>
   </div><footer>PATCHCRAFT / YNY LABS <span>Milestone 01 · No hardware latency claims yet.</span></footer>
 </main>`;

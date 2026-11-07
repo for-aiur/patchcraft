@@ -33,7 +33,7 @@ test('adaptive changes require numeric envelope and cannot rewire or drift beyon
  next.branches[0].processors[0].params.ms=110;assert.throws(()=>checkAdaptive(scene,next,envelope));
  next.branches[0].processors[0].params.ms=90;next.branches[1].signal='blue';assert.throws(()=>checkAdaptive(scene,next,envelope));
 });
-test('M3 import preserves MIDI targets and Program Change routes without sending messages',()=>{
+test('rig import preserves MIDI targets and Program Change routes without sending messages',()=>{
  const mapping={...defaultMapping('filter'),name:'Ableton Filter',cc:74};
  const pc={...defaultMapping('scene'),type:'program',program:2};
  const imported=sceneFromProfile({schemaVersion:1,name:'Existing',patch:starter(),mappings:[mapping,pc]});

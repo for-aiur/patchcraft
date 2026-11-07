@@ -48,7 +48,7 @@ test('explicit setup messages stay disarmed and disconnect never silently restor
   assert.equal(p.messages.length,1); assert.throws(()=>rig.arm('map',500,500));
 });
 
-test('rig profiles retain M2 patches and reject invalid or executable metadata', () => {
+test('rig profiles retain patches and reject invalid or executable metadata', () => {
   const profile={schemaVersion:1,name:'My rig',patch:starter(),mappings:[defaultMapping('a')]};
   assert.deepEqual(validateRig(JSON.parse(JSON.stringify(profile))),profile);
   for(const mutate of [p=>p.schemaVersion=2,p=>p.mappings[0].program=128,p=>p.mappings[0].channel=0,p=>p.mappings[0].low=0.9,p=>p.mappings[0].script='run()',p=>p.mappings.push({...p.mappings[0]})]) {
