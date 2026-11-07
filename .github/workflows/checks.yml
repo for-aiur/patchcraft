@@ -10,7 +10,7 @@ jobs:
       - name: Build test image
         run: docker compose build tests
       - name: Type check, production build, unit and browser tests
-        run: docker compose run --rm tests
+        run: docker compose run -T --rm tests
       - name: Clean up
         if: always()
         run: docker compose down --volumes

@@ -1,4 +1,4 @@
-import workletURL from './monitor-worklet.js?url';
+import workletURL from './monitor-worklet.js?url&no-inline';
 import { bounded, decibelsToGain, mixGains } from './parameters.mjs';
 
 export type Telemetry = {
@@ -21,6 +21,13 @@ export class AudioEngine {
   private dry?: GainNode;
   private wet?: GainNode;
   private level?: GainNode;
+  private drive?: GainNode;
+  private driveDry?: GainNode;
+  private driveWet?: GainNode;
+  private shaper?: WaveShaperNode;
+  private tremolo?: GainNode;
+  private modulation?: GainNode;
+  private oscillator?: OscillatorNode;
   private source?: AudioNode;
   private sample?: AudioBufferSourceNode;
   private intentionalStop = false;
@@ -110,7 +117,27 @@ export class AudioEngine {
       this.wet.gain.value = 0;
       this.source!.connect(this.worklet, this.sample ? 0 : options.channel, 0);
       this.worklet.connect(this.dry).connect(this.level);
-      this.worklet.connect(this.filter).connect(this.wet).connect(this.level);
+      this.drive = context.createGain();
+      this.driveDry = context.createGain();
+      this.driveWet = context.createGain();
+      this.driveWet.gain.value = 0;
+      this.shaper = context.createWaveShaper();
+      this.tremolo = context.createGain();
+      this.modulation = context.createGain();
+      this.modulation.gain.value = 0;
+      this.oscillator = context.createOscillator();
+      this.oscillator.frequency.value = 5;
+      this.oscillator.connect(this.modulation).connect(this.tremolo.gain);
+      this.oscillator.start();
+      const driveCurve = new Float32Array(1024);
+      for (let i = 0; i < driveCurve.length; i++) {
+        driveCurve[i] = Math.tanh((i / (driveCurve.length - 1)) * 2 - 1);
+      }
+      this.shaper.curve = driveCurve;
+      this.worklet.connect(this.filter);
+      this.filter.connect(this.driveDry).connect(this.tremolo);
+      this.filter.connect(this.drive).connect(this.shaper).connect(this.driveWet).connect(this.tremolo);
+      this.tremolo.connect(this.wet).connect(this.level);
       this.level.connect(context.destination);
       context.onstatechange = () => {
         if (!this.intentionalStop && context.state !== 'running') {
@@ -135,6 +162,23 @@ export class AudioEngine {
     this.dry.gain.setTargetAtTime(mix.dry, time, 0.015);
     this.wet.gain.setTargetAtTime(mix.wet, time, 0.015);
     this.filter.frequency.setTargetAtTime(bounded(cutoff, 80, context.sampleRate * 0.45, 2500), time, 0.02);
+  }
+
+  // EVR-96. Adapter consumes controls only; camera processing never enters audio rendering.
+  setVisualEffect(effect: string, value: number) { this.setVisualControls({[effect]: value}); }
+
+  setVisualControls(values: Record<string, number>) {
+    const c = this.context;
+    if (!c || !this.drive || !this.shaper || !this.tremolo || !this.modulation || !this.filter || !this.driveDry || !this.driveWet) return;
+    const cutoff = bounded(values.cutoff, 0, 1, 0), drive = bounded(values.drive, 0, 1, 0), tremolo = bounded(values.tremolo, 0, 1, 0);
+    const t = c.currentTime;
+    // Crossfade the bounded drive path instead of switching waveshaper curves live.
+    this.driveDry.gain.setTargetAtTime(values.drive !== undefined ? 0 : 1, t, 0.02);
+    this.driveWet.gain.setTargetAtTime(values.drive !== undefined ? 1 : 0, t, 0.02);
+    this.filter.frequency.setTargetAtTime(values.cutoff !== undefined ? 80 * (18000 / 80) ** cutoff : c.sampleRate * 0.45, t, 0.02);
+    this.drive.gain.setTargetAtTime(values.drive !== undefined ? 1 + 7 * drive : 1, t, 0.02);
+    this.tremolo.gain.setTargetAtTime(values.tremolo !== undefined ? 1 - tremolo / 2 : 1, t, 0.02);
+    this.modulation.gain.setTargetAtTime(values.tremolo !== undefined ? tremolo / 2 : 0, t, 0.02);
   }
 
   private fail(message: string) {
@@ -164,7 +208,16 @@ export class AudioEngine {
     this.stream = undefined;
     this.sample?.stop();
     this.sample = undefined;
+    this.oscillator?.stop(); this.oscillator = undefined;
+    this.drive = undefined; this.shaper = undefined; this.tremolo = undefined;
+    this.modulation = undefined; this.driveDry = undefined; this.driveWet = undefined;
     if (this.worklet) { this.worklet.port.onmessage = null; this.worklet.port.close(); }
+    this.worklet = undefined;
+    this.source = undefined;
+    this.level = undefined;
+    this.filter = undefined;
+    this.dry = undefined;
+    this.wet = undefined;
     if (context && context.state !== 'closed') await context.close();
   }
 }

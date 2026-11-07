@@ -3,7 +3,7 @@ import { AudioEngine } from './audio/engine';
 
 // EVR-94 / EVR-98 / EVR-107: a single-purpose local audio test surface.
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<header><a class="brand" href="/">◈ PATCHCRAFT <span>YNY LABS</span></a><span class="tag">LIVE AUDIO LAB / 01</span></header>
+<header><a class="brand" href="/">◈ PATCHCRAFT <span>YNY LABS</span></a><a href="/vision.html">M2 · Camera → MIDI lab ↗</a><span class="tag">LIVE AUDIO LAB / 01</span></header>
 <main>
   <div class="intro"><p class="eyebrow">PLUG IN. PLAY. MEASURE.</p><h1>Your guitar.<br><em>A clearer signal.</em></h1>
   <p>Test a live browser audio chain with your own interface.<br>Audio stays on this device.</p></div>
@@ -66,6 +66,7 @@ const stop = element<HTMLButtonElement>('stop');
 const devicesButton = element<HTMLButtonElement>('devices');
 const engine = new AudioEngine();
 let busy = false;
+let sessionRequest = 0;
 let lastError = '';
 let sessionStarted = 0;
 let lastSnapshot: Record<string, unknown> = {};
@@ -112,7 +113,9 @@ function resetChoices(select: HTMLSelectElement, fixed: [string, string][], devi
   if (Array.from(select.options).some(option => option.value === selected)) select.value = selected;
 }
 async function enumerate() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
+  const devices = (await navigator.mediaDevices.enumerateDevices())
+    .filter(device => device.deviceId && device.deviceId !== 'default');
+  if (busy || engine.context) return;
   resetChoices(input, [['', 'System default input'], ['sample', 'Synthetic pluck · no microphone']], devices.filter(d => d.kind === 'audioinput'));
   resetChoices(output, [['', 'System default output']], devices.filter(d => d.kind === 'audiooutput'));
 }
@@ -120,33 +123,44 @@ devicesButton.onclick = async () => {
   devicesButton.disabled = true;
   try {
     const permission = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    permission.getTracks().forEach(track => track.stop());
-    await enumerate();
-    status('Devices found. Select your interface and input channel.');
+    try {
+      await enumerate();
+      if (!busy && !engine.context) status('Devices found. Select your interface and input channel.');
+    } finally {
+      permission.getTracks().forEach(track => track.stop());
+    }
   } catch (error) { status(`Device access failed: ${error instanceof Error ? error.message : error}`, true); }
   finally { devicesButton.disabled = busy || !!engine.context; }
 };
-engine.onFailure = message => { status(message, true); transport(false); };
+engine.onFailure = message => {
+  ++sessionRequest;
+  status(message, true);
+  transport(false);
+};
 start.onclick = async () => {
   if (busy || engine.context) return;
+  const request = ++sessionRequest;
   transport(false, true);
   status('Starting audio…');
   lastError = '';
   try {
     await engine.start({ input: input.value, output: output.value, channel: +channel.value, sampleRate: +rate.value });
+    if (request !== sessionRequest) return;
     transport(true);
     sessionStarted = performance.now();
     uiMaxGap = 0;
     update();
     status(input.value === 'sample' ? 'Synthetic sample running. This does not test live input latency.' : 'Live monitoring. Raise hardware volume slowly.');
-    void enumerate().catch(() => {});
   } catch (error) {
+    if (request !== sessionRequest) return;
     transport(false);
     status(`Could not start: ${error instanceof Error ? error.message : error}`, true);
   }
 };
 stop.onclick = async () => {
+  const request = ++sessionRequest;
   await engine.stop();
+  if (request !== sessionRequest) return;
   transport(false);
   status('Stopped. Audio input released.');
 };
@@ -159,6 +173,7 @@ navigator.mediaDevices?.addEventListener('devicechange', () => {
   deviceChangeCount++;
   // Device changes do not silently reroute live audio to speakers.
   if (engine.context || busy) {
+    ++sessionRequest;
     void engine.stop(); transport(false);
     status('Audio devices changed. Check routing and start again.', true);
   }

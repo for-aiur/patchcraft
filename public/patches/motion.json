@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "name": "motion \u2192 tremolo",
+  "camera": {
+    "roi": {
+      "x": 0,
+      "y": 0,
+      "width": 1,
+      "height": 1
+    },
+    "target": [
+      1,
+      0,
+      0
+    ],
+    "tolerance": 0.35,
+    "fps": 30
+  },
+  "midi": {
+    "channel": 1,
+    "cc": 21,
+    "hz": 30,
+    "min": 0,
+    "max": 127,
+    "portHint": ""
+  },
+  "nodes": [
+    {
+      "id": "camera",
+      "kind": "camera",
+      "params": {
+        "signal": "motion"
+      }
+    },
+    {
+      "id": "normalize",
+      "kind": "normalize",
+      "params": {
+        "min": 0,
+        "max": 0.15
+      }
+    },
+    {
+      "id": "smooth",
+      "kind": "smooth",
+      "params": {
+        "ms": 80
+      }
+    },
+    {
+      "id": "effect",
+      "kind": "effect",
+      "params": {
+        "parameter": "tremolo"
+      }
+    },
+    {
+      "id": "output",
+      "kind": "output",
+      "params": {}
+    }
+  ],
+  "edges": [
+    {
+      "from": "camera",
+      "to": "normalize",
+      "type": "control"
+    },
+    {
+      "from": "normalize",
+      "to": "smooth",
+      "type": "control"
+    },
+    {
+      "from": "smooth",
+      "to": "effect",
+      "type": "control"
+    },
+    {
+      "from": "effect",
+      "to": "output",
+      "type": "control"
+    }
+  ]
+}

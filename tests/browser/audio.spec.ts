@@ -23,6 +23,10 @@ test('synthetic worklet session, controls, report and restart', async ({ page })
   expect(errors).toEqual([]);
 });
 test('permission failure leaves controls recoverable', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () =>
+      Promise.reject(new DOMException('Microphone permission denied', 'NotAllowedError'));
+  });
   await page.goto('/');
   await page.locator('#start').click();
   await expect(page.locator('#status')).toContainText('Could not start');
@@ -44,4 +48,23 @@ test('fake microphone stream exercises capture and releases tracks', async ({ br
   await page.locator('#stop').click();
   await expect(page.locator('#state')).toHaveText('STOPPED');
   await context.close();
+});
+
+test('cancelling pending capture does not interrupt a replacement session', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () => new Promise((_resolve, reject) => {
+      window.addEventListener('reject-capture', () => reject(new Error('Cancelled capture')), { once: true });
+      document.documentElement.dataset.capturePending = 'true';
+    });
+  });
+  await page.goto('/');
+  await page.locator('#start').click();
+  await expect(page.locator('html')).toHaveAttribute('data-capture-pending', 'true');
+  await page.locator('#stop').click();
+  await page.locator('#input').selectOption('sample');
+  await page.locator('#start').click();
+  await expect(page.locator('#state')).toHaveText('LIVE');
+  await page.evaluate(() => window.dispatchEvent(new Event('reject-capture')));
+  await expect(page.locator('#state')).toHaveText('LIVE');
+  await expect(page.locator('#stop')).toBeEnabled();
 });

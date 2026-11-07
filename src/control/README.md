@@ -1,7 +1,10 @@
 # Control boundary
 
-EVR-94: the milestone 01 audio engine has no control-graph dependency.
-Future typed control processing will live separately from `src/audio`.
-Control outputs may target AudioParam automation, Web MIDI, OSC bridges or
-native adapters; control-only operation must not require microphone permission
-or an AudioContext. No graph implementation or adapter is part of this PoC.
+EVR-93 / EVR-96 / EVR-103: `patch.ts` validates and runs a versioned, acyclic
+scalar control graph. Inputs are camera features with monotonic timestamps.
+Processors and semantic effect targets remain independent of browser DSP and
+MIDI output adapters. Audio capture is optional in control-only mode.
+
+`src/vision` analyzes one frame at a time in a worker. `src/midi/output.ts` owns
+explicit arming, bounded CC messages, rate limiting and stale/disconnect safety.
+The browser audio engine consumes validated controls through AudioParam automation.

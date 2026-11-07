@@ -1,92 +1,73 @@
 # Patchcraft
 
-YNY Labs' open-source browser audio and musician control platform. Current scope:
-**Milestone 01 — Live Audio PoC & Latency Test**. Planning lives exclusively in
-[Linear](https://linear.app/yildirim-labs/project/patchcraft-c3d5288da3ae).
+<p align="center">
+  <strong>Let your surroundings play.</strong><br>
+  Turn live camera signals into expressive controls for the music gear you already use.
+</p>
 
-## Run locally (EVR-106)
+<p align="center">
+  <a href="https://patchcraft-m1.pages.dev/vision"><strong>Open the live demo →</strong></a>
+</p>
 
-Install Docker with Compose, then from a clean checkout:
+<p align="center">
+  <a href="https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml"><img alt="CI" src="https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg"></a>
+  <a href="https://linear.app/yildirim-labs/project/patchcraft-c3d5288da3ae"><img alt="YNY Labs" src="https://img.shields.io/badge/YNY%20Labs-open%20source-9bcf65.svg"></a>
+</p>
+
+Patchcraft explores a simple idea: a change in light, color, or motion can shape
+the sound of a performance. Its camera-to-MIDI prototype reads visual signals in
+your browser and sends MIDI controls to a mapped effect in your DAW. Your guitar
+can stay in its usual signal chain.
+
+## Current stage
+
+The live prototype supports a basic camera signal → MIDI control mapping. Try it
+with a MIDI-capable DAW and an effect parameter you have mapped. This is an early
+musician test build; real equipment compatibility and physical response latency
+are still being evaluated. The demo reports software timings only and does not
+claim measured end-to-end latency.
+
+## Where we're headed
+
+- Reliable live audio and camera-to-MIDI control
+- Flexible patches that connect multiple signals, processors and effect controls
+- Conversational patch creation, followed by sharing and remixing
+
+We are validating the live musician workflow now. These directions will grow
+from feedback and tested hardware support.
+
+## Run locally
+
+Install Docker with Compose, then run:
 
 ```sh
 docker compose up --build
 ```
 
-Open http://localhost:5173 in your host browser. Docker serves the app; your
-browser owns USB hardware permissions and audio processing. No cloud account,
-Node or Python installation is needed. Optional port: copy `.env.example` to
-`.env`. Stop with `docker compose down`.
+Open [http://localhost:5173/vision](http://localhost:5173/vision) in a supported
+browser and allow camera access when prompted. The browser accesses your camera
+and MIDI devices; Docker only serves the app. No cloud account or host-installed
+Node.js is required.
+
+Run the automated checks:
 
 ```sh
 docker compose run --rm tests
 ```
 
-The test service builds automatically and starts its own server. It type-checks,
-builds, tests DSP safety with deterministic PCM fixtures, and runs Chromium smoke
-and simulated-microphone tests. Synthetic tests do not establish physical latency.
+## CI and hosting
 
-Use wired headphones, disable direct monitoring and start with low hardware volume.
-Select your USB interface and input channel. Start in bypass at -24 dB. Output is
-capped at -6 dB; this is not a guarantee of safe acoustic loudness. Bypass keeps
-the output gain. Stop releases capture. Disconnects/processor failures mute and
-require an explicit restart. No recording or audio uploads occur.
+GitHub Actions runs the Docker-based build, type checks and automated tests on
+pushes and pull requests. The public demo is hosted on Cloudflare Pages and is
+currently updated manually; CI does not publish deployments automatically.
 
-## Architecture (EVR-94)
+- [Live demo](https://patchcraft-m1.pages.dev/vision)
+- [Cloudflare Pages deployment dashboard](https://dash.cloudflare.com/ccc312fe2c1fc32de0f571920e1af2fc/pages/view/patchcraft-m1)
+- [CI runs](https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml)
+- [Project planning](https://linear.app/yildirim-labs/project/patchcraft-c3d5288da3ae)
 
-Vite/TypeScript static app, no backend. Capture → mono channel selection →
-AudioWorklet sanitization/metering → parallel dry/low-pass → smoothed gain → output.
-Linear dry/wet mix avoids a gain boost for correlated dry/filtered signals.
-Native AudioParam automation smooths changes independently of the UI. Telemetry
-is aggregated once per second; it cannot prove glitch-free device playback.
-Audio graph ownership lives in `src/audio`; future control graph and MIDI/OSC/native
-output adapters remain independent. External rigs will not need browser audio capture.
-No camera, AI or network operation is in the audio path.
+## Contributing
 
-Desktop Chromium is the first validation target. Input/output APIs vary by OS and
-browser; unsupported output selection uses OS settings. Requested rates may be
-rejected or resampled; inspect actual rates. Docker Desktop uses the host browser,
-not container audio. Remote plain HTTP/LAN addresses are not secure contexts:
-use localhost or HTTPS. Backgrounding can suspend audio on some platforms.
-
-## Diagnostics and validation (EVR-98 / EVR-100)
-
-Browser base/output latency, actual rates, capture-processing flags, worklet frame
-continuity, clipped/invalid samples, telemetry age and visible UI timer delays are
-shown separately. Physical round-trip remains **not measured** until an external
-wired test is performed. Export reports locally; review device labels before sharing.
-See [the loopback and Erdem test procedure](public/docs/loopback.md).
-No physical performance or compatibility claims have been validated yet.
-
-## Temporary HTTPS release path (EVR-107)
-
-No deployment has been performed. After explicit maintainer approval, build the
-static artifact in Docker and upload `dist/` to any static HTTPS host (for example
-Cloudflare Pages direct upload or Netlify manual deploy). No backend or production
-infrastructure is needed. Build/export:
-
-```sh
-docker compose run --rm -v ./dist:/app/dist tests npm run build
-```
-
-Serve the artifact root including `assets/` and `docs/loopback.md`. Confirm HTTPS,
-microphone permission, worklet asset loading, synthetic sample, live device routing,
-stop/restart and report export on the actual public URL before sending it to Erdem.
-Do not deploy, enable Pages workflows or publish automatically without permission.
-
-## Contributing and license
-
-See [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md) and
-[SECURITY.md](SECURITY.md). Apache-2.0; see [LICENSE](LICENSE).
-Dependencies and license review: [docs/dependencies.md](docs/dependencies.md).
-
-## Current verification / handoff
-
-- TypeScript check, Vite 7.3.7 production build and Node DSP tests passed in the
-  Linux development workspace. No physical USB interface was available.
-- Compose image creation using the initial all-browser image exceeded workspace
-  disk capacity. Dockerfile now installs only Chromium headless shell on Node 22.
-  The revised Compose build and Playwright suite have **not yet been verified**.
-- On macOS with Docker Desktop, run the two Compose commands above. First test
-  the synthetic sample, then the actual interface in the host browser.
-- EVR-101/106/94/98/102/107 remain in progress. EVR-100 requires Erdem's hardware.
-  No HTTPS demo has been published; physical RTT is not measured.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidance and [SECURITY.md](SECURITY.md)
+to report a vulnerability. Patchcraft is licensed under [Apache 2.0](LICENSE).

@@ -5,7 +5,8 @@ The EVR issue prefix and Linear team name do not change that identity.
 
 - Communicate with the maintainer in Turkish. Code, comments, technical documentation, Linear issues, commits and PR descriptions must be English.
 - Linear is the sole planning source: https://linear.app/yildirim-labs/project/patchcraft-c3d5288da3ae . Read the relevant existing issue and acceptance criteria before implementation. Link all development to EVR issues; create an English issue before untracked scope. Do not create a competing roadmap.
-- Current scope: milestone 01, Live Audio PoC & Latency Test (EVR-101, EVR-106, EVR-94, EVR-98, EVR-102, EVR-107, EVR-100). Follow the existing milestone order: audio PoC, patch engine, musician rig integrations, community, optional AI stack, independent deployment.
+- Current scope: milestone 04 conversational patch agent and internal test dashboard (EVR-105, EVR-109, EVR-110, EVR-111, EVR-112, EVR-97). Hardware acceptance remains open under EVR-100, EVR-114 and EVR-116. Follow the Linear milestone order: audio PoC, patch engine, musician rig integrations, conversational agent, community, independent deployment. Gemini is the authoring and embedding provider; do not introduce Ollama.
+- Use the exact gitBranchName returned by the relevant Linear issue for local branches.
 - Never commit, push, merge or deploy without explicit permission. Use `git config user.name "for-aiur"` and `git config user.email "yildirimmehmet82@gmail.com"` for authorized commits. Format: `EVR-###: Short descriptive message`.
 - Do not add automated/bot authorship, Codex/AI co-author trailers, generated labels, signatures or promotional footers. Preserve other contributors' legitimate authorship.
 - Local startup: `docker compose up --build`. Tests: `docker compose run --rm tests`. No host application dependencies or cloud account may be required. Optional future AI/GPU services use Compose profiles.
