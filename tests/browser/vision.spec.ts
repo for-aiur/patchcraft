@@ -24,16 +24,16 @@ test('camera-only MIDI flow, patch persistence, report and disconnect safety', a
   await expect(page.locator('#camera-state')).toHaveText('LIVE');
   await expect.poll(() => page.locator('#feature-value-brightness').textContent()).not.toBe('—');
   await expect(page.locator('#diagnostics')).toContainText('analysis fps');
-  await page.getByRole('button', { name: 'Enable MIDI & find outputs' }).click();
+  await page.getByRole('button', { name: 'Find MIDI outputs', exact: true }).click();
   await page.locator('#midi-output').selectOption('virtual-test');
   await page.getByRole('button', { name: 'Arm MIDI', exact: true }).click();
   await expect(page.locator('#armed')).toHaveText('ARMED');
   await expect.poll(() => page.evaluate(() => (window as unknown as {testMidiMessages: number[][]}).testMidiMessages.length)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Save locally', exact: true }).click();
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export M2 test report' }).click();
+  await page.getByRole('button', { name: 'Save test notes', exact: true }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('patchcraft-m2-report.json');
+  expect(download.suggestedFilename()).toBe('patchcraft-session-notes.json');
   const report = JSON.parse(await readFile((await download.path())!, 'utf8'));
   expect(report.camera.frameCount).toBeGreaterThan(0);
   expect(report.softwareMeasurements.processingMs.count).toBeGreaterThan(0);
@@ -78,6 +78,7 @@ test('camera controls browser preview independently and stop camera keeps audio 
   await page.goto('/vision.html');
   await page.getByRole('button', { name: 'Start camera', exact: true }).click();
   await expect(page.locator('#camera-state')).toHaveText('LIVE');
+  await page.locator('details').filter({hasText:'Optional · hear the camera control in this browser'}).locator('summary').click();
   await page.getByRole('button', { name: 'Start audio preview', exact: true }).click();
   await expect(page.locator('#audio-status')).toContainText('running muted');
   await expect(page.locator('#diagnostics')).toContainText('Browser audio: running');

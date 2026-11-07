@@ -18,7 +18,8 @@ test('guided rig mapping, setup CC, controller Learn, program encoding and safe 
     window.addEventListener('rig-disconnect',()=>{output.state='disconnected';access.onstatechange?.()});
   });
   await page.goto('/vision');
-  await page.getByRole('button',{name:'Enable MIDI & find outputs'}).click();
+  await page.getByRole('button',{name:'Find MIDI outputs',exact:true}).click();
+  await page.getByText('Optional · add more MIDI controls',{exact:true}).click();
   await page.getByRole('button',{name:'Add mapping',exact:true}).click();
   await page.locator('#rig-output').selectOption('pedal');
   await page.getByRole('button',{name:'Confirm selected output',exact:true}).click();
@@ -49,10 +50,12 @@ test('guided rig mapping, setup CC, controller Learn, program encoding and safe 
   await expect(page.locator('#rig-state')).toHaveText('DISARMED');
   await page.getByRole('button',{name:'Arm selected mapping',exact:true}).click();
   await expect(page.locator('#rig-status')).toContainText('Confirm this output first');
-  await page.getByText("Erdem's rig acceptance & compatibility report",{exact:true}).click();
+  await page.getByText('Optional session checklist',{exact:true}).click();
   const downloadPromise=page.waitForEvent('download');
-  await page.getByRole('button',{name:'Export M3 rig report',exact:true}).click();
-  const report=JSON.parse(await readFile((await (await downloadPromise).path())!,'utf8'));
+  await page.getByRole('button',{name:'Save session notes',exact:true}).click();
+  const download=await downloadPromise;
+  expect(download.suggestedFilename()).toBe('patchcraft-session-notes.json');
+  const report=JSON.parse(await readFile((await download.path())!,'utf8'));
   expect(report.run.outcomes['camera-to-daw']).toBe('not-run');
   expect(report.physicalVisualToEffectLatencyMs).toBeNull();
   expect(report.outputs[0].armed).toBe(false);
@@ -74,7 +77,8 @@ test('live reusable CC mapping stops on device loss without automatic rearm', as
   await page.goto('/vision');
   await page.getByRole('button',{name:'Start camera',exact:true}).click();
   await expect(page.locator('#camera-state')).toHaveText('LIVE');
-  await page.getByRole('button',{name:'Enable MIDI & find outputs'}).click();
+  await page.getByRole('button',{name:'Find MIDI outputs',exact:true}).click();
+  await page.getByText('Optional · add more MIDI controls',{exact:true}).click();
   await page.getByRole('button',{name:'Add mapping',exact:true}).click();
   await page.locator('#rig-output').selectOption('daw');
   await page.getByRole('button',{name:'Confirm selected output',exact:true}).click();
