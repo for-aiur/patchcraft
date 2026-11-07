@@ -58,7 +58,7 @@ The worker analyzes 160 × 120 pixels. Before hardware acceptance, target analys
 
 Reports retain the latest 1800 samples for each timing metric. Frame age starts at drawing a delivered video frame into the analysis canvas. It excludes sensor exposure, camera transport and video-frame delivery. MIDI software timings end at the `send()` call and exclude OS/virtual cable/DAW/plugin latency. Send intervals include deduplication and scene-dependent changes; they are not transport jitter measurements.
 
-For physical visual-to-effect response, use a synchronized external recorder/video setup capturing the stimulus and the audible or displayed effect response with one clock. Use repeatable abrupt stimuli, identify onset thresholds, calibrate camera/audio skew, repeat at least 20 trials and report raw trials, median, p95, min/max and recording resolution/frame rate. Document uncertain stages. A 60 fps video quantizes visual onset to about 16.7 ms; it cannot prove sub-frame latency. Compare a baseline and camera-controlled run. Keep this measurement separate from M1 guitar audio loopback RTT.
+For physical visual-to-effect response, use a synchronized external recorder/video setup capturing the stimulus and the audible or displayed effect response with one clock. Use repeatable abrupt stimuli, identify onset thresholds, calibrate camera/audio skew, repeat at least 20 trials and report raw trials, median, p95, min/max and recording resolution/frame rate. Document uncertain stages. A 60 fps video quantizes visual onset to about 16.7 ms; it cannot prove sub-frame latency. Compare a baseline and camera-controlled run. Keep this measurement separate from guitar audio loopback RTT.
 
 ## Scope limitations
 

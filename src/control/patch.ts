@@ -1,4 +1,4 @@
-// EVR-93 / EVR-96 / EVR-103. Closed node catalog; patches contain data only.
+// Closed node catalog; patches contain data only.
 export type Signal = 'brightness' | 'red' | 'green' | 'blue' | 'color' | 'motion';
 export type Effect = 'cutoff' | 'drive' | 'tremolo' | 'delay' | 'reverb';
 export type NodeKind = 'camera' | 'normalize' | 'clamp' | 'map' | 'smooth' | 'threshold' | 'rateLimit' | 'effect' | 'output';

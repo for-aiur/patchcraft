@@ -36,30 +36,30 @@ MIDI bank-selection sequences and device-specific SysEx are not automated in thi
 | USB/DIN MIDI-capable pedal or amp modeler | Explicit port/channel → device-supported CC or Program Change | Vendor-specific mapping required; actual hardware pending |
 | Browser without Web MIDI | Camera and browser audio preview can still be used; MIDI setup explains support requirement | Cross-browser hardware matrix pending |
 
-macOS IAC and Windows virtual cable setup, with the first browser presets, are described in [the M2 guide](vision-midi.md). Enable the destination's receive/control/remote settings. Use a different physical or virtual port for controller Learn if needed. [Apple IAC guide](https://support.apple.com/guide/audio-midi-setup/transfer-midi-information-between-apps-ams1013/mac), [Ableton mapping guide](https://help.ableton.com/hc/en-us/articles/360000038859-Making-custom-MIDI-Mappings), [loopMIDI vendor](https://www.tobias-erichsen.de/software/loopmidi.html), [Logic Controller Assignments](https://support.apple.com/en-ca/guide/logicpro/ctls71c31855/mac)
+macOS IAC and Windows virtual cable setup, with the browser controls, are described in [the MIDI guide](vision-midi.md). Enable the destination's receive/control/remote settings. Use a different physical or virtual port for controller Learn if needed. [Apple IAC guide](https://support.apple.com/guide/audio-midi-setup/transfer-midi-information-between-apps-ams1013/mac), [Ableton mapping guide](https://help.ableton.com/hc/en-us/articles/360000038859-Making-custom-MIDI-Mappings), [loopMIDI vendor](https://www.tobias-erichsen.de/software/loopmidi.html), [Logic Controller Assignments](https://support.apple.com/en-ca/guide/logicpro/ctls71c31855/mac)
 
 ## Hardware reference candidates
 
 - Line 6 HX Stomp: the vendor manual documents USB MIDI and MIDI connectors. CC 1/2 emulate expression pedals; assigning other effect parameters requires the device's Controller Assign mapping. Program Change reception must be enabled. Windows USB operation has vendor driver requirements. These facts come from the firmware 2.65 manual; check the installed firmware's current manual before testing. [Vendor manual, MIDI sections](https://line6.com/data/6/0a020a4010c935bb66a4c0c44f/application/pdf/HX)
 - BOSS GT-1000: the vendor documents receiving MIDI and assigning controls through its assignment workflow. Use the installed firmware's parameter and MIDI implementation guides to choose a valid CC and target. Patchcraft does not assume a universal gain CC. [Vendor integration overview](https://www.boss.info/uk/promos/gt-1000_ultimate_guide/), [official manuals](https://www.boss.info/global/support/by_product/gt-1000/owners_manuals/)
 
-These are reference candidates, not required purchases or compatibility certifications. Test Erdem's existing hardware first.
+These are reference candidates, not required purchases or compatibility certifications. Test the musician's existing hardware first.
 
-## Erdem acceptance run
+## Hardware acceptance run
 
 Record the exact OS/browser, DAW/plugin, interface/driver/buffer, camera, MIDI route or pedal/firmware in the  report fields. Keep hardware output low and use wired monitoring. Disable duplicate monitoring in the browser/DAW when comparing paths.
 
-1. Perform the M1 guitar audio baseline separately and export its report. Capture physical audio RTT only using [the wired loopback procedure](loopback.md).
+1. Perform the guitar audio baseline separately and export its report. Capture physical audio RTT only using [the wired loopback procedure](loopback.md).
 2. With guitar audio in the normal rig, run camera → graph → MIDI → one audible effect for at least ten minutes. Press Start acceptance run after camera and a rig mapping are armed. The timer measures elapsed session time, not verified uninterrupted delivery.
 3. Confirm continuous CC range, smoothing, rate cap, useful playing response and simultaneous mappings. Verify DAW Learn and, if available, controller CC Learn.
 4. Test manual Program Change, initial-high behavior, low/high trigger and repeated-high suppression. Note any target-specific preset-switch audio gaps or level changes.
 5. Unplug/reconnect camera, controller and selected output; hide/restore the browser tab. All affected live output must remain disarmed until explicitly recovered/rearmed. Confirm the existing audio rig continues playing.
 6. Save/export a rig, reload it and confirm that no device auto-arms or sends presets. Reconfirm destinations and repeat a small control movement.
-7. Mark each check Pass/Fail/Not run based on actual observation. Finish the run and export the  report. Also export the M2 report for full camera/control diagnostics. Keep actual recordings outside the repository and review personal setup notes before sharing.
+7. Mark each check Pass/Fail/Not run based on actual observation. Finish the run and export the report. Also export the camera/control report for full diagnostics. Keep actual recordings outside the repository and review personal setup notes before sharing.
 
 Acceptance requires all applicable checks to pass on the recorded real setup, a ten-minute playing run, a repeatable control-response observation and the player's assessment that it is usable. Unavailable Program Change/controller hardware must be marked Not run and remain pending for compatibility coverage. A successful simulated test or an elapsed timer does not establish a real hardware pass.
 
-For physical visual-to-effect latency, use the synchronized stimulus/response method in the M2 guide, report raw trials and recorder settings, and keep it separate from software call timing and M1 audio RTT.  reports leave physical latency null until a separate measurement is supplied. Software frame-to-send and send-interval summaries include finite sample counts and do not measure cable/driver/DAW latency.
+For physical visual-to-effect latency, use the synchronized stimulus/response method in the camera guide, report raw trials and recorder settings, and keep it separate from software call timing and audio RTT. Reports leave physical latency null until a separate measurement is supplied. Software frame-to-send and send-interval summaries include finite sample counts and do not measure cable/driver/DAW latency.
 
 ## Troubleshooting
 

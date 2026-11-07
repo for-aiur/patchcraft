@@ -1,4 +1,4 @@
-# M2 node contract (EVR-93 / EVR-96)
+# Node contract
 
 Patches use schema version 1. Runtime validation is authoritative for uniqueness, typed connections, acyclicity and parameter bounds. Data has a closed node catalog and cannot execute code. The guided surface supports one camera and one control output. Version 1 files remain loadable when optional metadata is added. Unknown versions fail before activation.
 
@@ -14,7 +14,7 @@ Patches use schema version 1. Runtime validation is authoritative for uniqueness
 | Effect | effect | control parameter in/out | cutoff, drive, tremolo, delay, reverb semantic target; normalized value passes through |
 | Output | output | control in | browser DSP or MIDI adapter consumes normalized value and semantic target |
 
-The audio engine separately owns mono capture → AudioWorklet → dry/wet filter/drive/tremolo → safe output gain → destination. Audio ports carry PCM, control ports carry timestamped finite scalar values. PCM edges are never accepted as control connections. This milestone's patch format configures control routing and audio parameter targets; arbitrary audio rewiring is not supported.
+The audio engine separately owns mono capture → AudioWorklet → dry/wet filter/drive/tremolo → safe output gain → destination. Audio ports carry PCM, control ports carry timestamped finite scalar values. PCM edges are never accepted as control connections. The patch format configures control routing and audio parameter targets; arbitrary audio rewiring is not supported.
 
 | Target | Range / default | Scaling / smoothing | Candidate support |
 | --- | --- | --- | --- |
@@ -24,7 +24,7 @@ The audio engine separately owns mono capture → AudioWorklet → dry/wet filte
 | Delay wet | 0–1 / 0.2 | target DAW/plugin scaling / configured control smoothing | MIDI mapping; browser DSP catalog-only |
 | Reverb wet | 0–1 / 0.2 | target DAW/plugin scaling / configured control smoothing | MIDI mapping; browser DSP catalog-only |
 
-Browser output stays bounded at −6 dB maximum with a −24 dB starting level. It starts muted in M2. Camera failure freezes browser effect parameters while audio rendering continues. Mapping changes disarm camera modulation until explicit rearming.
+Browser output stays bounded at −6 dB maximum with a −24 dB starting level. It starts muted. Camera failure freezes browser effect parameters while audio rendering continues. Mapping changes disarm camera modulation until explicit rearming.
 
 MIDI uses channel 1–16, CC 0–119, integer range 0–127, send cap 1–60 Hz (default 30). CC 120–127 channel-mode commands are rejected. Unchanged values are suppressed. Sends are immediate with no application scheduling queue. Stale data after 500 ms, hidden tab, edited settings or disconnected port disarms sending and clears pending port output. The external parameter retains its last value. MIDI receipt and audible latency require external measurement.
 

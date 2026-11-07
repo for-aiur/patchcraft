@@ -1,10 +1,10 @@
-# Integration decision record (EVR-117)
+# Integration options
 
 Date: 2026-11-07. Patchcraft / YNY Labs. This research adds no SDK or runtime dependency.
 
 ## Decision
 
-Complete Web MIDI CC/Program Change routing and musician validation first. The next integration to implement, if Erdem's target needs it, is a minimal local OSC companion. Native plugins follow evidence that MIDI/OSC cannot serve a required rig. Keep timestamped scalar control outputs separate from PCM audio and transport encoding.
+Complete Web MIDI CC/Program Change routing and musician validation first. If a real musician workflow requires another transport, evaluate a minimal local OSC companion. Consider native plugins only when evidence shows MIDI/OSC cannot serve a required rig. Keep timestamped scalar control outputs separate from PCM audio and transport encoding.
 
 ## Capability matrix
 
@@ -23,7 +23,7 @@ OSC defines message encoding and can be transported over UDP. A browser applicat
 
 A future companion should serve a local app and loopback WebSocket endpoint, with an explicit fixed target host/port and allowlisted OSC addresses. It must bound messages, suppress unchanged updates, reject arbitrary forwarding and validate origins/session authorization. The public HTTPS demo must not assume an unsecured localhost WebSocket will work; mixed-content/local-network browser rules must be tested for the chosen deployment. Docker Compose can provide the optional companion profile; the host browser continues to own camera/audio/MIDI access. The companion does not process guitar audio or invoke AI.
 
-No OSC bridge is shipped by this research ticket. Acceptance is a capability matrix and a decision for the smallest justified next integration, as specified in EVR-117.
+No OSC bridge is shipped. The next step is a capability matrix and a decision for the smallest justified integration based on a tested musician workflow.
 
 ## Native SDK and license review
 

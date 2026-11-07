@@ -1,4 +1,4 @@
-// EVR-114. Immediate CC sends only; no scheduled message queue.
+// Immediate CC sends only; no scheduled message queue.
 export type MidiPort = { id: string; name?: string | null; state: string; send: (bytes: number[]) => void; clear?: () => void };
 export type MidiSettings = { channel: number; cc: number; hz: number; min: number; max: number };
 export class MidiOutput {

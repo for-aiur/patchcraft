@@ -1,4 +1,4 @@
-# Dependency license review (EVR-101)
+# Dependency license review
 
 Existing Apache-2.0 license retained. No runtime third-party DSP or recordings. Locked build/test package license metadata:
 

@@ -1,11 +1,11 @@
-# Physical loopback and guitar validation (EVR-98 / EVR-100)
+# Physical loopback and guitar validation
 
 No hardware result has been measured yet. Browser baseLatency/outputLatency are
 API reports, not input-to-output round-trip measurements. Do not add them and
 call the sum physical RTT. Worklet frame gaps and UI telemetry age do not measure
 DAC underruns or audible glitches.
 
-## Erdem's first play test
+## First play test
 
 1. Use desktop Chromium first, a wired USB interface and wired headphones.
    Set hardware output low, phantom power off unless independently required,
@@ -18,7 +18,7 @@ DAC underruns or audible glitches.
 4. Play for 10 minutes. Note crackles, dropouts, subjective playability and times.
    Test background tab, UI activity, unplug/reconnect and permission denial.
    Device changes intentionally stop output; they must never switch to speakers
-   silently. Resume explicitly. Camera tests are deferred to milestone 02.
+   silently. Resume explicitly. Camera control is outside this audio measurement procedure.
 5. Export the local JSON report. Fill in OS/version, browser/version, interface,
    driver, hardware buffer, actual capture/context rates, direct monitoring state,
    session duration and listening observations. Nothing uploads automatically.
@@ -50,7 +50,7 @@ loop. Do not monitor recorder channels back into Patchcraft.
   method. Re-run after changing one setting. This measures the physical configured
   input-to-output path; an internally scheduled impulse is not an equivalent test.
 - Compare bypass and effect-enabled runs. Before reporting a latency target as
-  met, agree on a playable threshold with Erdem and validate actual playing.
+  met, agree on a playable threshold with the musician and validate actual playing.
 
 ## Result template
 
@@ -59,6 +59,6 @@ Capture rate / context rate / recorder rate / direct monitoring state:
 Wiring / recorder compensation / onset method / calibration skew:
 Raw trials (ms) / corrected trials / median / min / max:
 10-minute audible glitches / background behavior / bypass / mute / reconnect:
-Erdem's playable assessment / browser-reported values (separately):
+Musician's playable assessment / browser-reported values (separately):
 
 Status: NOT RUN. No physical interface is available in the development environment.

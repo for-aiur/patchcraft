@@ -2,7 +2,7 @@ import { MidiOutput, type MidiPort, type MidiSettings } from './output.ts';
 import { distribution } from '../diagnostics.ts';
 import { validatePatch, type Patch } from '../control/patch.ts';
 
-// EVR-115. Portable routing data never stores an armed state or a device ID.
+// Portable routing data never stores an armed state or a device ID.
 export type Mapping = MidiSettings & {
   id: string;
   name: string;

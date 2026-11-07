@@ -1,6 +1,6 @@
 # Control boundary
 
-EVR-93 / EVR-96 / EVR-103: `patch.ts` validates and runs a versioned, acyclic
+`patch.ts` validates and runs a versioned, acyclic
 scalar control graph. Inputs are camera features with monotonic timestamps.
 Processors and semantic effect targets remain independent of browser DSP and
 MIDI output adapters. Audio capture is optional in control-only mode.

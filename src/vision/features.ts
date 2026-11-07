@@ -1,4 +1,4 @@
-// EVR-95. Pixel statistics run in a worker with one frame in flight.
+// Pixel statistics run in a worker with one frame in flight.
 export type Features = {
   brightness: number; red: number; green: number; blue: number; color: number;
   motion: number; directionX: number; directionY: number; changedFraction: number;

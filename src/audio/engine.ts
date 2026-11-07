@@ -8,7 +8,7 @@ export type Telemetry = {
 type SinkContext = AudioContext & { setSinkId?: (id: string) => Promise<void>; sinkId?: string };
 export type StartOptions = { input: string; output: string; channel: number; sampleRate: number };
 
-/** EVR-94. Owns the audio graph only; no camera, control transport or UI dependency. */
+/** Owns the audio graph only; no camera, control transport or UI dependency. */
 export class AudioEngine {
   context?: SinkContext;
   stream?: MediaStream;
@@ -164,7 +164,7 @@ export class AudioEngine {
     this.filter.frequency.setTargetAtTime(bounded(cutoff, 80, context.sampleRate * 0.45, 2500), time, 0.02);
   }
 
-  // EVR-96. Adapter consumes controls only; camera processing never enters audio rendering.
+  // The adapter consumes controls only; camera processing never enters audio rendering.
   setVisualEffect(effect: string, value: number) { this.setVisualControls({[effect]: value}); }
 
   setVisualControls(values: Record<string, number>) {

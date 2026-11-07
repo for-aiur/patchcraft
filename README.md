@@ -12,7 +12,6 @@
 <p align="center">
   <a href="https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml"><img alt="CI" src="https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg"></a>
-  <a href="https://linear.app/yildirim-labs/project/patchcraft-c3d5288da3ae"><img alt="YNY Labs" src="https://img.shields.io/badge/YNY%20Labs-open%20source-9bcf65.svg"></a>
 </p>
 
 Patchcraft explores a simple idea: a change in light, color, or motion can shape
@@ -65,9 +64,7 @@ pushes and pull requests. The public demo is hosted on Cloudflare Pages and is
 currently updated manually; CI does not publish deployments automatically.
 
 - [Live demo](https://patchcraft-m1.pages.dev/vision)
-- [Cloudflare Pages deployment dashboard](https://dash.cloudflare.com/ccc312fe2c1fc32de0f571920e1af2fc/pages/view/patchcraft-m1)
 - [CI runs](https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml)
-- [Project planning](https://linear.app/yildirim-labs/project/patchcraft-c3d5288da3ae)
 
 ## Contributing
 
