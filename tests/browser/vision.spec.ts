@@ -1,91 +1,71 @@
-import { readFile } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
 
-test('camera-only MIDI flow, patch persistence, report and disconnect safety', async ({ browser }) => {
-  const context = await browser.newContext({ permissions: ['camera'] });
-  const page = await context.newPage();
-  const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+test('interactive simulator sends the selected CC and stops cleanly', async ({ page }) => {
   await page.addInitScript(() => {
     const messages: number[][] = [];
-    const port = { id: 'virtual-test', name: 'Test DAW port', state: 'connected', open: async () => { access.onstatechange?.(); }, send: (bytes: number[]) => messages.push(bytes), clear: () => {} };
+    const port = { id: 'virtual-test', name: 'Test DAW port', state: 'connected', open: async () => {}, send: (bytes: number[]) => messages.push(bytes), clear: () => {} };
     const access = { outputs: new Map([[port.id, port]]), onstatechange: null as null | (() => void) };
     Object.defineProperty(navigator, 'requestMIDIAccess', { value: async () => access });
-    window.addEventListener('test-midi-disconnect', () => { port.state = 'disconnected'; access.onstatechange?.(); });
     Object.defineProperty(window, 'testMidiMessages', { value: messages });
-    const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-    navigator.mediaDevices.getUserMedia = async constraints => {
-      if (constraints?.audio) throw new Error('Camera-only mode requested audio unexpectedly');
-      return original(constraints);
-    };
   });
-  await page.goto('/vision.html');
-  await page.getByRole('button', { name: 'Start camera', exact: true }).click();
-  await expect(page.locator('#camera-state')).toHaveText('LIVE');
-  await expect.poll(() => page.locator('#feature-value-brightness').textContent()).not.toBe('—');
-  await expect(page.locator('#diagnostics')).toContainText('analysis fps');
-  await page.getByRole('button', { name: 'Find MIDI outputs', exact: true }).click();
+  await page.goto('/vision');
+  await expect(page.getByRole('heading', { name: /Light\. Motion\./ })).toBeVisible();
+  await page.getByRole('button', { name: 'Start MIDI output' }).click();
   await page.locator('#midi-output').selectOption('virtual-test');
-  await page.getByRole('button', { name: 'Arm MIDI', exact: true }).click();
-  await expect(page.locator('#armed')).toHaveText('ARMED');
-  await expect.poll(() => page.evaluate(() => (window as unknown as {testMidiMessages: number[][]}).testMidiMessages.length)).toBeGreaterThan(0);
-  await page.getByRole('button', { name: 'Save locally', exact: true }).click();
-  const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Save test notes', exact: true }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('patchcraft-session-notes.json');
-  const report = JSON.parse(await readFile((await download.path())!, 'utf8'));
-  expect(report.camera.frameCount).toBeGreaterThan(0);
-  expect(report.softwareMeasurements.processingMs.count).toBeGreaterThan(0);
-  expect(report.physicalVisualToEffectLatencyMs).toBeNull();
-  await page.screenshot({path:test.info().outputPath('vision-camera-midi.png'),fullPage:true});
-  await test.info().attach('simulated-camera-report', {body:JSON.stringify(report,null,2),contentType:'application/json'});
-  await page.locator('#video').evaluate((video: HTMLVideoElement) => video.pause());
-  await expect(page.locator('#armed')).toHaveText('DISARMED');
-  await page.getByRole('button', { name: 'Start camera', exact: true }).click();
-  await expect(page.locator('#camera-state')).toHaveText('LIVE');
-  await expect(page.locator('#armed')).toHaveText('DISARMED');
-  await expect.poll(async () => /[1-9][0-9]* processed frames/.test((await page.locator('#diagnostics').textContent())!)).toBe(true);
-  await page.getByRole('button', { name: 'Arm MIDI', exact: true }).click();
-  await expect(page.locator('#armed')).toHaveText('ARMED');
-  await page.evaluate(() => window.dispatchEvent(new Event('test-midi-disconnect')));
-  await expect(page.locator('#armed')).toHaveText('DISARMED');
-  await page.getByRole('button', { name: 'Load local patch' }).click();
-  await expect(page.locator('#camera-state')).toHaveText('OFF');
-  await expect(page.locator('#midi-output')).toHaveValue('');
-  await expect(page.locator('#armed')).toHaveText('DISARMED');
-  await page.getByRole('button', { name: 'Arm MIDI', exact: true }).click();
-  await expect(page.locator('#armed')).toHaveText('DISARMED');
-  await expect(page.locator('#midi-status')).toContainText('Output changed');
-  expect(errors).toEqual([]);
-  await context.close();
+  await page.getByRole('button', { name: 'Start repeatable sweep' }).click();
+  await page.getByRole('button', { name: 'Start MIDI output' }).click();
+  await expect(page.locator('#midi-state')).toHaveText('SENDING');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { testMidiMessages: number[][] }).testMidiMessages.length)).toBeGreaterThan(2);
+  const firstMessage = await page.evaluate(() => (window as unknown as { testMidiMessages: number[][] }).testMidiMessages[0]);
+  expect(firstMessage[0]).toBe(0xb0);
+  expect(firstMessage[1]).toBe(74);
+  expect(firstMessage[2]).toBeGreaterThanOrEqual(0);
+  expect(firstMessage[2]).toBeLessThanOrEqual(127);
+  await expect(page.getByRole('button', { name: /Learn/i })).toHaveCount(0);
+  await expect(page.getByText(/You can assign the same CC to multiple parameters/)).toBeVisible();
+  await page.getByRole('button', { name: 'Stop MIDI output' }).click();
+  await expect(page.locator('#midi-state')).toHaveText('STOPPED');
+  const stoppedCount = await page.evaluate(() => (window as unknown as { testMidiMessages: number[][] }).testMidiMessages.length);
+  await page.waitForTimeout(150);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { testMidiMessages: number[][] }).testMidiMessages.length)).toBe(stoppedCount);
+  expect(await page.locator('#diagnostics').textContent()).toContain('repeatable sweep running');
 });
 
-test('patch import rejects unsafe calibration and preserves active patch', async ({ page }) => {
-  await page.goto('/vision.html');
-  await page.getByText('Validated graph JSON', { exact: true }).click();
-  const patch = JSON.parse(await page.locator('#graph-json').inputValue());
-  patch.nodes[1].params.max = 0;
-  await page.locator('#graph-json').fill(JSON.stringify(patch));
-  await page.getByRole('button', { name: 'Validate & load graph' }).click();
-  await expect(page.locator('#patch-status')).toContainText('positive width');
-  await expect(page.locator('#armed')).toHaveText('DISARMED');
-});
-
-test('camera controls browser preview independently and stop camera keeps audio running', async ({ browser }) => {
+test('camera remains a live input for the same MIDI output path', async ({ browser }) => {
   const context = await browser.newContext({ permissions: ['camera'] });
   const page = await context.newPage();
-  await page.goto('/vision.html');
-  await page.getByRole('button', { name: 'Start camera', exact: true }).click();
-  await expect(page.locator('#camera-state')).toHaveText('LIVE');
-  await page.locator('details').filter({hasText:'Optional · hear the camera control in this browser'}).locator('summary').click();
-  await page.getByRole('button', { name: 'Start audio preview', exact: true }).click();
-  await expect(page.locator('#audio-status')).toContainText('running muted');
-  await expect(page.locator('#diagnostics')).toContainText('Browser audio: running');
-  await page.getByRole('button', { name: 'Stop camera', exact: true }).click();
-  await expect(page.locator('#camera-state')).toHaveText('OFF');
-  await expect(page.locator('#diagnostics')).toContainText('Browser audio: running');
-  await page.getByRole('button', { name: 'Stop audio', exact: true }).click();
-  await expect(page.locator('#audio-status')).toHaveText('Audio stopped.');
+  await page.addInitScript(() => {
+    const messages: number[][] = [];
+    const port = { id: 'virtual-camera', name: 'Camera DAW port', state: 'connected', open: async () => {}, send: (bytes: number[]) => messages.push(bytes), clear: () => {} };
+    const access = { outputs: new Map([[port.id, port]]), onstatechange: null as null | (() => void) };
+    Object.defineProperty(navigator, 'requestMIDIAccess', { value: async () => access });
+    Object.defineProperty(window, 'cameraMidiMessages', { value: messages });
+  });
+  await page.goto('/vision');
+  await page.locator('#source').selectOption('camera');
+  await page.getByRole('button', { name: 'Start camera' }).click();
+  await expect(page.locator('#input-state')).toHaveText('CAMERA LIVE');
+  await expect(page.locator('#camera-status')).toContainText('Camera live');
+  await expect.poll(() => page.locator('#signal-value').textContent()).not.toBe('0.000');
+  await page.getByRole('button', { name: 'Start MIDI output' }).click();
+  await page.locator('#midi-output').selectOption('virtual-camera');
+  await page.getByRole('button', { name: 'Start MIDI output' }).click();
+  await expect(page.locator('#midi-state')).toHaveText('SENDING');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { cameraMidiMessages: number[][] }).cameraMidiMessages.length)).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Stop camera' }).click();
+  await expect(page.locator('#midi-state')).toHaveText('STOPPED');
+  await expect(page.locator('#camera-status')).toContainText('Camera stopped');
   await context.close();
+});
+
+test('camera and simulator switch cleanly while the MIDI route stays explicit', async ({ page }) => {
+  await page.goto('/vision');
+  await expect(page.locator('#simulator-panel')).toBeVisible();
+  await expect(page.locator('#camera-panel')).toBeHidden();
+  await page.locator('#source').selectOption('camera');
+  await expect(page.locator('#camera-panel')).toBeVisible();
+  await expect(page.locator('#simulator-panel')).toBeHidden();
+  await page.locator('#source').selectOption('simulator');
+  await expect(page.locator('#simulator-panel')).toBeVisible();
+  await expect(page.getByText(/Only applications connected to the selected MIDI port/)).toBeVisible();
 });
