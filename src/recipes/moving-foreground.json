@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "id": "moving-foreground",
+  "name": "Moving Foreground",
+  "tagline": "Movement separates from a quiet scene.",
+  "description": "An adapting background model creates a foreground mask. With a fixed camera, entering or moving within the scene raises selected area. A stationary object gradually becomes background.",
+  "image": {
+    "stages": [
+      {
+        "id": "soft",
+        "module": "org.patchcraft.image.gaussian",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "sigma": 1
+        },
+        "measurements": []
+      },
+      {
+        "id": "foreground",
+        "module": "org.patchcraft.image.background-subtract",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "threshold": 0.08,
+          "learningRate": 0.02
+        },
+        "measurements": []
+      },
+      {
+        "id": "clean",
+        "module": "org.patchcraft.image.morphology",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "operation": 2,
+          "radius": 1
+        },
+        "measurements": [
+          "coverage",
+          "x",
+          "y"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 1,
+    "red": 0,
+    "motion": 0
+  },
+  "midi": {
+    "cc": 24,
+    "channel": 1
+  },
+  "target": "Vital Delay Mix",
+  "steps": [
+    "Keep the camera fixed and start with a clear, still background.",
+    "Map CC 24, channel 1 to delay mix.",
+    "Move an object into view; foreground coverage raises the mix.",
+    "Hold still to see adaptation. Camera movement and lighting changes also trigger the mask."
+  ],
+  "routes": {
+    "brightness": "clean|coverage",
+    "red": "",
+    "motion": ""
+  },
+  "smoothingMs": 120,
+  "calibration": {
+    "brightness": {
+      "min": 0,
+      "max": 0.35,
+      "invert": false
+    }
+  }
+}
