@@ -7,8 +7,8 @@ Patchcraft sends one selected MIDI CC from a live camera feature or the built-in
 1. Open `/vision.html` in desktop Chrome or Chromium over HTTPS. A local `http://localhost` session is also a secure context.
 2. Leave **Simulator** selected to try the control without a camera, or choose **Camera**, allow access and start the camera. Select a feature such as brightness, red, color similarity or motion.
 3. For the simulator, move the signal slider or start the repeatable sweep. For camera input, change the light, color or motion in view.
-4. Choose **Enable MIDI outputs**, then select the port that your receiving app listens to. Select the CC and, if needed, adjust its channel and output range.
-5. In the receiving app, open MIDI assignment for the parameter and press **Start MIDI output** in Patchcraft. Move the camera scene or simulator value so the receiving app sees the selected CC.
+4. Press **Start MIDI output** to request MIDI access. Select the port that your receiving app listens to, the CC and, if needed, adjust the channel and output range.
+5. In the receiving app, open MIDI assignment for the parameter, then press **Start MIDI output** again in Patchcraft. Move the camera scene or simulator value so the receiving app sees the selected CC.
 6. Press **Stop MIDI output** when finished. A stopped or disconnected camera, hidden page, or disconnected MIDI port stops sending. Restart output explicitly after recovery.
 
 Patchcraft does not need to know which parameter or application receives the CC. It sends through the selected MIDI port. Other applications receive it only if they listen to that port or are routed to it.
