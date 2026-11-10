@@ -51,6 +51,14 @@ browser and allow camera access when prompted. The browser accesses your camera
 and MIDI devices; Docker only serves the app. No cloud account or host-installed
 Node.js is required.
 
+The default startup runs only the browser app. Database and Gemini authoring services are optional and use the `authoring` profile; the Compose test command starts the test dependencies when needed.
+
+For local visual-signal checks, open `http://localhost:5173/visual-lab.html` after the app starts. Choose one of the included recipes, select a local video file (it stays in the browser) or use the camera, add/reorder image-processing stages, and adjust the weighted signal. The page can send its output over Web MIDI to LoopBe or another MIDI port for receiver-side MIDI Learn. Use the displayed processing timings for development checks only; they are not hardware performance claims.
+
+The Visual Lab keeps Color Focus, Motion Pulse, Light Sweep and Scene Energy in the Simple recipes group. Explore adds Texture Drive (Sobel edges), Shadow Gate (Otsu), Local Pattern (adaptive threshold), Moving Foreground (background subtraction), Motion Area (changed-pixel mask) and Color Position (largest red-region X). Open Recipe guide for setup, MIDI target and limitations. Temporal masks require a fixed camera and are affected by lighting changes; Color Position selects the largest region rather than tracking an object's identity.
+
+Recipes are discovered from `src/recipes/*.json` at dev/build time. Download an edited recipe as JSON, put the reviewed file in that directory with a unique ID, then restart/rebuild. Source-control changes follow the normal authorized commit workflow. Each image step can declare selected `measurements`; `routes` connect `stage-id|measurement` to mixer inputs. Calibration and smoothing settings travel with the recipe. No database is required.
+
 Run the automated checks:
 
 ```sh

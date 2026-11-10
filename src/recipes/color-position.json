@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "color-position",
+  "name": "Color Position",
+  "tagline": "Move a red object to sweep the stereo field.",
+  "description": "A red hue mask isolates an object. Its largest region X position controls a pan parameter; unlike Color Focus, it follows position rather than the amount of red. No identity tracking is performed.",
+  "image": {
+    "stages": [
+      {
+        "id": "soft",
+        "module": "org.patchcraft.image.gaussian",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "sigma": 1
+        },
+        "measurements": []
+      },
+      {
+        "id": "red",
+        "module": "org.patchcraft.image.threshold",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "channel": 4,
+          "low": 0.95,
+          "high": 0.05,
+          "saturationMin": 0.35,
+          "valueMin": 0.15,
+          "invert": false
+        },
+        "measurements": []
+      },
+      {
+        "id": "clean",
+        "module": "org.patchcraft.image.morphology",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "operation": 2,
+          "radius": 1
+        },
+        "measurements": [
+          "largestX",
+          "largestY",
+          "valid"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 1,
+    "red": 0,
+    "motion": 0
+  },
+  "midi": {
+    "cc": 10,
+    "channel": 1
+  },
+  "target": "Instrument Pan",
+  "steps": [
+    "Place a single saturated red object in front of a contrasting background.",
+    "Map CC 10, channel 1 to pan in your instrument or DAW.",
+    "Move the object left to right while keeping it visible.",
+    "If the object disappears, X becomes zero; competing red objects can switch the largest region."
+  ],
+  "routes": {
+    "brightness": "clean|largestX",
+    "red": "",
+    "motion": ""
+  },
+  "smoothingMs": 120
+}

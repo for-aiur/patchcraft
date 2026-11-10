@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "id": "scene-energy",
+  "name": "Scene Energy",
+  "tagline": "Blend light, color and movement into one macro.",
+  "description": "A named weighted signal combines brightness, red color coverage and motion into one expressive control.",
+  "image": {
+    "stages": [
+      {
+        "module": "org.patchcraft.image.roi-crop",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "id": "stage-1"
+      },
+      {
+        "module": "org.patchcraft.image.tone",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "contrast": 1.1,
+          "gamma": 1
+        },
+        "id": "stage-3"
+      },
+      {
+        "module": "org.patchcraft.image.box-blur",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "radius": 1
+        },
+        "id": "stage-4"
+      },
+      {
+        "id": "measurement-gray",
+        "module": "org.patchcraft.image.channel",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "channel": 0
+        },
+        "measurements": [
+          "mean"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 0.4,
+    "red": 0.35,
+    "motion": 0.25
+  },
+  "midi": {
+    "cc": 22,
+    "channel": 1
+  },
+  "target": "Vital Wavetable Position",
+  "steps": [
+    "Click Play demo scene or choose a local video with changing light and color.",
+    "In Vital, open MIDI Learn on wavetable position.",
+    "Start MIDI output on CC 22, channel 1 and observe the combined value.",
+    "Move the three weights to shape which visual changes matter most."
+  ],
+  "routes": {
+    "brightness": "measurement-gray|mean",
+    "red": "",
+    "motion": ""
+  },
+  "smoothingMs": 80
+}

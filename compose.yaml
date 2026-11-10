@@ -1,5 +1,6 @@
 services:
   authoring:
+    profiles: [authoring]
     build:
       context: .
       target: authoring
@@ -19,6 +20,7 @@ services:
       - ./server:/app/server:ro
       - ./src:/app/src:ro
   database:
+    profiles: [authoring, test]
     image: pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: patchcraft
@@ -44,6 +46,7 @@ services:
       - ./public:/app/public:ro
       - ./index.html:/app/index.html:ro
       - ./vision.html:/app/vision.html:ro
+      - ./visual-lab.html:/app/visual-lab.html:ro
       - ./vite.config.ts:/app/vite.config.ts:ro
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

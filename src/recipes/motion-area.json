@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "motion-area",
+  "name": "Motion Area",
+  "tagline": "Changing pixels open the effect.",
+  "description": "A frame-change mask shows where luminance changed. Unlike Motion Pulse, this measures the fraction of pixels exceeding a change threshold, rather than average frame difference.",
+  "image": {
+    "stages": [
+      {
+        "id": "gray",
+        "module": "org.patchcraft.image.grayscale",
+        "version": 1,
+        "enabled": true,
+        "parameters": {},
+        "measurements": []
+      },
+      {
+        "id": "soft",
+        "module": "org.patchcraft.image.gaussian",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "sigma": 1
+        },
+        "measurements": []
+      },
+      {
+        "id": "change",
+        "module": "org.patchcraft.image.motion-mask",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "threshold": 0.08
+        },
+        "measurements": [
+          "coverage",
+          "x",
+          "y"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 0,
+    "red": 0,
+    "motion": 1
+  },
+  "midi": {
+    "cc": 25,
+    "channel": 1
+  },
+  "target": "Vital Chorus Mix",
+  "steps": [
+    "Keep the camera fixed and move a hand or object through the frame.",
+    "Map CC 25, channel 1 to chorus mix.",
+    "The white mask shows changed pixels; selected area controls the mix.",
+    "Stop moving and the mask clears on the next analyzed frame."
+  ],
+  "routes": {
+    "brightness": "",
+    "red": "",
+    "motion": "change|coverage"
+  },
+  "smoothingMs": 120,
+  "calibration": {
+    "motion": {
+      "min": 0,
+      "max": 0.25,
+      "invert": false
+    }
+  }
+}

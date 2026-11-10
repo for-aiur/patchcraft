@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "local-pattern",
+  "name": "Local Pattern",
+  "tagline": "Local contrast shapes resonance.",
+  "description": "Adaptive threshold finds local dark detail under uneven lighting. Its selected area responds to printed patterns, stripes and textures rather than overall exposure.",
+  "image": {
+    "stages": [
+      {
+        "id": "gray",
+        "module": "org.patchcraft.image.grayscale",
+        "version": 1,
+        "enabled": true,
+        "parameters": {},
+        "measurements": []
+      },
+      {
+        "id": "pattern",
+        "module": "org.patchcraft.image.adaptive-threshold",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "radius": 5,
+          "offset": 0.04,
+          "invert": true
+        },
+        "measurements": [
+          "coverage"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 1,
+    "red": 0,
+    "motion": 0
+  },
+  "midi": {
+    "cc": 71,
+    "channel": 1
+  },
+  "target": "Vital Filter Resonance",
+  "steps": [
+    "Try a striped card or patterned fabric under uneven lighting.",
+    "Map CC 71, channel 1 to resonance; keep the instrument parameter range conservative.",
+    "Change the pattern scale or orientation and inspect the local mask.",
+    "Adjust neighborhood radius and capture the useful calibration range."
+  ],
+  "routes": {
+    "brightness": "pattern|coverage",
+    "red": "",
+    "motion": ""
+  },
+  "smoothingMs": 120,
+  "calibration": {
+    "brightness": {
+      "min": 0,
+      "max": 0.4,
+      "invert": false
+    }
+  }
+}

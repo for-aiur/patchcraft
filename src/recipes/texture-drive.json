@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "id": "texture-drive",
+  "name": "Texture Drive",
+  "tagline": "Image detail adds grit.",
+  "description": "Sobel edge intensity controls drive. A detailed fabric or leaf produces a stronger signal than a plain wall; this responds to spatial detail even when the scene is still. A threshold and closing mask expose the largest connected edge region: its box and pink center mark show where X/Y are measured. The original drive signal still comes from the Sobel mean before masking.",
+  "image": {
+    "stages": [
+      {
+        "id": "gray",
+        "module": "org.patchcraft.image.grayscale",
+        "version": 1,
+        "enabled": true,
+        "parameters": {},
+        "measurements": []
+      },
+      {
+        "id": "soft",
+        "module": "org.patchcraft.image.gaussian",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "sigma": 0.75
+        },
+        "measurements": []
+      },
+      {
+        "id": "edges",
+        "module": "org.patchcraft.image.sobel",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "gain": 1
+        },
+        "measurements": [
+          "mean"
+        ]
+      },
+      {
+        "id": "edge-mask",
+        "module": "org.patchcraft.image.threshold",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "channel": 0,
+          "low": 0.16,
+          "high": 1,
+          "saturationMin": 0,
+          "valueMin": 0,
+          "invert": false
+        },
+        "measurements": []
+      },
+      {
+        "id": "edge-shape",
+        "module": "org.patchcraft.image.morphology",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "operation": 3,
+          "radius": 1
+        },
+        "measurements": [
+          "largestX",
+          "largestY",
+          "largest",
+          "valid"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 1,
+    "red": 0,
+    "motion": 0
+  },
+  "midi": {
+    "cc": 23,
+    "channel": 1
+  },
+  "target": "Vital Distortion Drive",
+  "steps": [
+    "Point the camera at a plain surface, then move to a textured surface.",
+    "Map CC 23, channel 1 to distortion drive using your plugin MIDI Learn.",
+    "Sobel mean still controls drive. The final mask adds largest-region X/Y; drag either reading to an input to use it instead.",
+    "Adjust mask Lower bound to isolate edges. The green box and pink cross identify the largest connected region.",
+    "X/Y are normalized: left/top 0, right/bottom 1. No region returns 0; multiple regions can switch selection.",
+    "Use Calibration Capture for drive range. Drag largest-region X/Y from Measured outputs to a mixer input when needed."
+  ],
+  "routes": {
+    "brightness": "edges|mean",
+    "red": "",
+    "motion": ""
+  },
+  "smoothingMs": 120,
+  "calibration": {
+    "brightness": {
+      "min": 0,
+      "max": 0.15,
+      "invert": false
+    }
+  }
+}

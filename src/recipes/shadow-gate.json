@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "shadow-gate",
+  "name": "Shadow Gate",
+  "tagline": "A dark shape opens the filter.",
+  "description": "Otsu separates dark and bright regions. The inverted mask measures the dark region; use a silhouette against a bright background. It works best with two clearly separated brightness groups.",
+  "image": {
+    "stages": [
+      {
+        "id": "gray",
+        "module": "org.patchcraft.image.grayscale",
+        "version": 1,
+        "enabled": true,
+        "parameters": {},
+        "measurements": []
+      },
+      {
+        "id": "clean",
+        "module": "org.patchcraft.image.median",
+        "version": 1,
+        "enabled": true,
+        "parameters": {},
+        "measurements": []
+      },
+      {
+        "id": "shadow",
+        "module": "org.patchcraft.image.otsu",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "invert": true
+        },
+        "measurements": [
+          "coverage"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 1,
+    "red": 0,
+    "motion": 0
+  },
+  "midi": {
+    "cc": 74,
+    "channel": 1
+  },
+  "target": "Vital Filter Cutoff",
+  "steps": [
+    "Use a bright background and a dark object or silhouette.",
+    "Map CC 74, channel 1 to filter cutoff.",
+    "Cover more of the frame with the dark object to open the filter.",
+    "For motion-only control use Motion Pulse instead; a stationary shadow holds this value."
+  ],
+  "routes": {
+    "brightness": "shadow|coverage",
+    "red": "",
+    "motion": ""
+  },
+  "smoothingMs": 120
+}

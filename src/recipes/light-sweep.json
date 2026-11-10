@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "id": "light-sweep",
+  "name": "Light Sweep",
+  "tagline": "Let a brighter scene open the filter.",
+  "description": "Average scene brightness creates a smooth filter movement. Use a gradual lighting fade or a video with changing exposure.",
+  "image": {
+    "stages": [
+      {
+        "module": "org.patchcraft.image.roi-crop",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "id": "stage-1"
+      },
+      {
+        "module": "org.patchcraft.image.grayscale",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "enabled": true
+        },
+        "id": "stage-2"
+      },
+      {
+        "module": "org.patchcraft.image.tone",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "contrast": 1.15,
+          "gamma": 1
+        },
+        "id": "stage-3"
+      },
+      {
+        "module": "org.patchcraft.image.box-blur",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "radius": 1
+        },
+        "id": "stage-4"
+      },
+      {
+        "id": "measurement-gray",
+        "module": "org.patchcraft.image.channel",
+        "version": 1,
+        "enabled": true,
+        "parameters": {
+          "channel": 0
+        },
+        "measurements": [
+          "mean"
+        ]
+      }
+    ]
+  },
+  "weights": {
+    "brightness": 1,
+    "red": 0,
+    "motion": 0
+  },
+  "midi": {
+    "cc": 74,
+    "channel": 1
+  },
+  "target": "Vital Filter Cutoff",
+  "steps": [
+    "Click Play demo scene or choose a local video.",
+    "In Vital, open MIDI Learn on Filter Cutoff.",
+    "Start MIDI output on CC 74, channel 1 and watch the filter move with the changing light.",
+    "Try changing the image region or brightness weight."
+  ],
+  "routes": {
+    "brightness": "measurement-gray|mean",
+    "red": "",
+    "motion": ""
+  },
+  "smoothingMs": 80
+}
