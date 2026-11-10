@@ -22,7 +22,7 @@ test('interactive simulator sends the selected CC and stops cleanly', async ({ p
   expect(firstMessage[2]).toBeGreaterThanOrEqual(0);
   expect(firstMessage[2]).toBeLessThanOrEqual(127);
   await expect(page.getByRole('button', { name: /Learn/i })).toHaveCount(0);
-  await expect(page.getByText(/You can assign the same CC to multiple parameters/)).toBeVisible();
+  await expect(page.getByText(/You can use one CC for multiple parameters/)).toBeVisible();
   await page.getByRole('button', { name: 'Stop MIDI output' }).click();
   await expect(page.locator('#midi-state')).toHaveText('STOPPED');
   const stoppedCount = await page.evaluate(() => (window as unknown as { testMidiMessages: number[][] }).testMidiMessages.length);
