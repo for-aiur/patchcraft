@@ -69,7 +69,8 @@ docker compose run --rm tests
 
 GitHub Actions runs the Docker-based build, type checks and automated tests on
 pushes and pull requests. The public demo is hosted on Cloudflare Pages and is
-currently updated manually; CI does not publish deployments automatically.
+automatically updated after a successful `main` test run once deployment secrets
+are configured. See [deployment setup and rollback](docs/deployment.md).
 
 - [Live demo](https://patchcraft-m1.pages.dev/vision)
 - [CI runs](https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml)
