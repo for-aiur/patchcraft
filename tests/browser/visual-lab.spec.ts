@@ -33,7 +33,7 @@ test('local visual lab previews image stages, offers a blank recipe canvas and J
   await page.locator('#recipe-file').setInputFiles({ name: 'imported-demo.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) });
   await expect(page.locator('#recipe-name')).toHaveValue('Imported Demo');
   await expect(page.locator('#recipe-status')).toContainText('MIDI is stopped');
-  await expect(page.getByText(/Videos are processed in your browser/)).toBeVisible();
+  await expect(page.locator('#source-status')).toContainText('Video stays in this browser');
 });
 
 test('each image stage updates its own live preview from the same source frame', async ({ page }) => {
