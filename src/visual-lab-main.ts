@@ -11,6 +11,7 @@ import { imageModules, validateImageStage, type ImagePipelineSettings, type Imag
 import { ModuleRegistry } from './control/visual-modules';
 import { VisualGraphRuntime } from './control/visual-graph';
 import { exampleFeatureSource, exampleWeightedMix, exampleResponse } from './control/example-module';
+import { mountLiveEffects } from './audio/live-effects-panel';
 import { MidiOutput } from './midi/output';
 import { evaluateControlSignal, validateControlSignal, type ControlSignal, type ControlSignalState } from './control/control-signal';
 
@@ -75,12 +76,13 @@ document.querySelector('#app')!.innerHTML = `
       <label class="route-label">Input 3<select id="motion-source" class="signal-source"><option value="">Not connected</option></select></label><div class="signal input-node"><span>Input value</span><meter id="motion-meter" min="0" max="1" value="0"></meter><output id="motion-value">0.000</output></div>
       <label class="module-control"><span>Input 3 · weight</span><output id="motion-weight-label"></output><input id="motion-weight" type="range" min="0" max="1" step="0.01"></label>
       <div class="mix-node" hidden><strong id="mix-name"></strong><meter id="mix-meter" min="0" max="1"></meter><output id="mix-value"></output></div>
-      <div class="response-node"><div class="mix-node" hidden><strong>Smoothed control output</strong><span>Weighted inputs → smoothing → MIDI CC</span><div class="combined"><meter id="response-meter" min="0" max="1" value="0"></meter><output id="response-value">0.000</output></div></div>
+      <div class="response-node"><div class="mix-node" hidden><strong>Smoothed control output</strong><span>Weighted inputs → smoothing → control output</span><div class="combined"><meter id="response-meter" min="0" max="1" value="0"></meter><output id="response-value">0.000</output></div></div>
         <label class="module-control" hidden><span>Response curve</span><output id="curve-label">1.00</output><input id="response-curve" type="range" min="0.25" max="4" step="0.05" value="1"></label>
         <label class="module-control"><span>Smoothing</span><output id="smoothing-label">80 ms</output><input id="response-smoothing" type="range" min="0" max="1000" step="1" value="80"></label>
       </div>
-      <div class="signal-output-display"><div class="control-knob" id="control-knob" data-signal-output="scene-energy" draggable="true" role="meter" aria-label="MIDI control value" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><i></i><span id="knob-value">0</span></div><div class="signal-history"><div class="history-legend"><span>● Raw mix</span><span>● Smoothed output</span><small>Last 20 seconds · normalized 0–1</small></div><canvas id="signal-history" width="640" height="180" aria-label="Raw and smoothed signal over the last twenty seconds"></canvas></div></div><div class="pipe-output"><span>CONTROL OUTPUT</span><b>→ CC mapping</b></div>
+      <div class="signal-output-display"><div class="control-knob" id="control-knob" data-signal-output="scene-energy" draggable="true" role="meter" aria-label="Normalized control value on the 0 to 127 scale" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><i></i><span id="knob-value">0</span></div><div class="signal-history"><div class="history-legend"><span>● Raw mix</span><span>● Smoothed output</span><small>Last 20 seconds · normalized 0–1</small></div><canvas id="signal-history" width="640" height="180" aria-label="Raw and smoothed signal over the last twenty seconds"></canvas></div></div><div class="pipe-output"><span>CONTROL OUTPUT</span><b>→ MIDI or audio effects</b></div>
     </section>
+    <section class="panel wide" id="live-audio-panel" aria-label="Audio effects"></section>
     <section class="panel wide midi-panel">
       <div class="section-title"><span>MIDI OUTPUT & MAPPING</span><span id="midi-state" class="badge">MIDI off</span></div>
       <p class="muted">Suggested target: <strong id="recipe-target"></strong>. Open MIDI Learn in your plugin or DAW.</p>
@@ -153,6 +155,11 @@ function makeGraph() {
     { from: 'scene-energy', output: 'value', to: 'response', input: 'input' },
   ] }, registry);
 }
+const liveAudio = mountLiveEffects(el('live-audio-panel'), id => {
+  if (!frameLoopActive || performance.now() - latestAt > 500) return undefined;
+  if (!controlSignals.some(item => item.id === id && item.enabled && item.inputs.some(input => input.source && input.weight > 0))) return undefined;
+  return signalValues.get(id);
+});
 function syncGraph(at: number) {
   for(const key of signalKeys){const raw=rawValue(key),capture=captures.get(key);if(capture&&el<HTMLSelectElement>(`${key}-source`).value){capture.min=Math.min(capture.min,raw);capture.max=Math.max(capture.max,raw);capture.samples++;}el(`${key}-cal-values`).textContent=`${raw.toFixed(3)} → ${routedValue(key).toFixed(3)}`;el<HTMLMeterElement>(`${key}-meter`).value=routedValue(key);el(`${key}-value`).textContent=routedValue(key).toFixed(3);}
 
@@ -166,6 +173,7 @@ function syncGraph(at: number) {
     const tab = document.querySelector<HTMLElement>(`[data-signal-id="${signal.id}"] .named-signal-tab-value`);
     if(tab)tab.textContent=String(Math.round(value*127));
   }
+  liveAudio.update();
   const control = signalValues.get('scene-energy') ?? 0;
   const mainSignal=controlSignals.find(signal=>signal.id==='scene-energy');
   const connectedInputs=mainSignal?.inputs.filter(item=>item.source&&item.weight>0)??[];
@@ -293,6 +301,8 @@ function clearStagePreviews() {
 function stopSource(message: string) {
   stopFrameClock?.(); stopFrameClock = undefined; previousVideoTime = -1; previousDecodedFrames = -1; pending = false;
   frameLoopActive = false;
+  latest = undefined; latestAt = 0;
+  liveAudio.update();
   stream?.getTracks().forEach(track => track.stop()); stream = undefined;
   preview.pause(); preview.srcObject = null;
   if (objectUrl) URL.revokeObjectURL(objectUrl); objectUrl = undefined;
@@ -554,7 +564,7 @@ function effectiveWeight(key:string){if(!el<HTMLSelectElement>(`${key}-source`).
 function measurementOptions(){return pipelineStages.flatMap((stage,index)=>Object.entries(outputLabels).filter(([port])=>stage.enabled&&stage.measurements?.includes(port)).map(([port,label])=>new Option(`${index+1} · ${label}`,`${stage.id}|${port}`)));}
 function signalOptions(){return controlSignals.map(signal=>[signal.id,signal.name] as [string,string]);}
 function refreshMappingSignalOptions(){for(const row of document.querySelectorAll<HTMLElement>('.cc-route')){const select=row.querySelector<HTMLSelectElement>('.route-signal')!,value=select.value;select.replaceChildren(...signalOptions().map(([id,name])=>new Option(name,id)));select.value=signalOptions().some(([id])=>id===value)?value:'scene-energy';}}
-function renderNamedSignals(){const host=el('named-signal-tabs');host.replaceChildren();for(const signal of controlSignals){const button=document.createElement('button');button.type='button';button.className=`named-signal-tab${signal.enabled?'':' muted'}`;button.dataset.signalId=signal.id;button.dataset.signalOutput=signal.id;button.draggable=true;button.setAttribute('role','tab');button.setAttribute('aria-selected',String(signal.id===activeSignalId));button.setAttribute('aria-label',`${signal.name}${signal.enabled?'':' (muted)'}; use the pencil icon to rename`);const dot=document.createElement('span');dot.className='signal-enabled-dot';dot.setAttribute('aria-hidden','true');const title=document.createElement('span');title.className='named-signal-title';title.textContent=signal.name;const rename=document.createElement('span');rename.className='rename-signal';rename.textContent='✎';rename.setAttribute('aria-hidden','true');const value=document.createElement('output');value.className='named-signal-tab-value';value.textContent=String(Math.round((signalValues.get(signal.id)??0)*127));button.append(dot,title,rename,value);button.addEventListener('click',event=>{if((event.target as HTMLElement).closest('.rename-signal')){event.preventDefault();event.stopPropagation();editSignalTab(signal.id,button,title);return;}activateSignal(signal.id);});button.addEventListener('dblclick',event=>{event.preventDefault();editSignalTab(signal.id,button,title);});button.addEventListener('dragstart',event=>{event.dataTransfer?.setData('text/patchcraft-signal',signal.id);if(event.dataTransfer)event.dataTransfer.effectAllowed='link';});host.append(button);}refreshMappingSignalOptions();updateSignalControlState();}
+function renderNamedSignals(){const host=el('named-signal-tabs');host.replaceChildren();for(const signal of controlSignals){const button=document.createElement('button');button.type='button';button.className=`named-signal-tab${signal.enabled?'':' muted'}`;button.dataset.signalId=signal.id;button.dataset.signalOutput=signal.id;button.draggable=true;button.setAttribute('role','tab');button.setAttribute('aria-selected',String(signal.id===activeSignalId));button.setAttribute('aria-label',`${signal.name}${signal.enabled?'':' (muted)'}; use the pencil icon to rename`);const dot=document.createElement('span');dot.className='signal-enabled-dot';dot.setAttribute('aria-hidden','true');const title=document.createElement('span');title.className='named-signal-title';title.textContent=signal.name;const rename=document.createElement('span');rename.className='rename-signal';rename.textContent='✎';rename.setAttribute('aria-hidden','true');const value=document.createElement('output');value.className='named-signal-tab-value';value.textContent=String(Math.round((signalValues.get(signal.id)??0)*127));button.append(dot,title,rename,value);button.addEventListener('click',event=>{if((event.target as HTMLElement).closest('.rename-signal')){event.preventDefault();event.stopPropagation();editSignalTab(signal.id,button,title);return;}activateSignal(signal.id);});button.addEventListener('dblclick',event=>{event.preventDefault();editSignalTab(signal.id,button,title);});button.addEventListener('dragstart',event=>{event.dataTransfer?.setData('text/patchcraft-signal',signal.id);if(event.dataTransfer)event.dataTransfer.effectAllowed='link';});host.append(button);}refreshMappingSignalOptions();liveAudio.setSignals(controlSignals);updateSignalControlState();}
 function editSignalTab(id:string,tab:HTMLButtonElement,title:HTMLElement){const signal=signalById(id);if(!signal||tab.querySelector('input'))return;const editor=document.createElement('input');editor.className='signal-tab-editor';editor.value=signal.name;editor.maxLength=80;editor.setAttribute('aria-label','Rename signal');title.replaceWith(editor);editor.focus();editor.select();let done=false;const finish=(save:boolean)=>{if(done)return;done=true;if(save){signal.name=editor.value.trim()||'Untitled signal';input('active-signal-name').value=signal.name;syncActiveSignalFromUI();}else renderNamedSignals();};editor.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();finish(true);}if(event.key==='Escape'){event.preventDefault();finish(false);}});editor.addEventListener('blur',()=>finish(true));}
 function signalById(id=activeSignalId){return controlSignals.find(signal=>signal.id===id);}
 function activateSignal(id:string){if(activeSignalId)syncActiveSignalFromUI();const signal=signalById(id);if(!signal)return;activeSignalId=id;for(const [index,key] of signalKeys.entries()){const item=signal.inputs[index]??{id:`input-${index+1}`,source:'',weight:0,calibration:{min:0,max:1,invert:false}};el<HTMLSelectElement>(`${key}-source`).value=item.source;input(`${key}-weight`).value=String(item.weight);calibrations[key]=item.calibration;refreshCalibration(key);}input('response-smoothing').value=String(signal.smoothingMs);el('smoothing-label').textContent=`${signal.smoothingMs} ms`;input('active-signal-name').value=signal.name;el('signal-name').textContent=signal.name;for(const key of signalKeys)el(`${key}-weight-label`).textContent=`${Math.round(Number(input(`${key}-weight`).value)*100)}%`;revealConnectedInputs();updateSignalControlState();for(const tab of document.querySelectorAll<HTMLButtonElement>('.named-signal-tab'))tab.setAttribute('aria-selected',String(tab.dataset.signalId===id));makeGraph();graph.reset();drawWires();}
@@ -915,10 +925,11 @@ el('midi-toggle').addEventListener('click', async () => {
 // Focus changes are normal when playing an external instrument. Do not disarm.
 
 setInterval(() => {
+  liveAudio.update();
   if (midi.armed && midi.port?.state !== 'connected') { midi.disarm('MIDI disconnected. Select the port and start again.'); el('midi-state').textContent = 'MIDI off'; }
   if (midi.armed && performance.now() - latestAt > 500) { el('midi-state').textContent = 'Waiting for frames'; el('midi-status').textContent = 'No fresh frames: no MIDI is sent. Sending resumes when this source delivers fresh frames. Stop cancels output.'; }
 }, 100);
-window.addEventListener('pagehide', () => { stopSource('Page closed.'); graph.dispose(); });
+window.addEventListener('pagehide', () => { liveAudio.stop(); stopSource('Page closed.'); graph.dispose(); });
 const recipeIds = new Set<string>();
 for (const recipe of recipes) {
   try { validateRecipeImport(recipe); if(recipeIds.has(recipe.id)) throw new Error('Duplicate recipe ID'); recipeIds.add(recipe.id); }

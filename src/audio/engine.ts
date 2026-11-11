@@ -1,3 +1,4 @@
+import { LiveEffects, type LiveEffectId, type LiveEffectControl } from './live-effects';
 import workletURL from './monitor-worklet.js?url&no-inline';
 import { bounded, decibelsToGain, mixGains } from './parameters.mjs';
 
@@ -6,7 +7,7 @@ export type Telemetry = {
   clippedSamples: number; peak: number; renderedSeconds: number;
 };
 type SinkContext = AudioContext & { setSinkId?: (id: string) => Promise<void>; sinkId?: string };
-export type StartOptions = { input: string; output: string; channel: number; sampleRate: number };
+export type StartOptions = { input: string; output: string; channel: number; sampleRate: number; liveEffects?: boolean };
 
 /** Owns the audio graph only; no camera, control transport or UI dependency. */
 export class AudioEngine {
@@ -16,6 +17,7 @@ export class AudioEngine {
   telemetry?: Telemetry;
   lastTelemetry = 0;
   interruptions = 0;
+  private liveEffects?: LiveEffects;
   private worklet?: AudioWorkletNode;
   private filter?: BiquadFilterNode;
   private dry?: GainNode;
@@ -86,15 +88,19 @@ export class AudioEngine {
         this.stream = stream;
         const track = stream.getAudioTracks()[0];
         this.settings = track.getSettings();
-        if (this.settings.channelCount && options.channel >= this.settings.channelCount) {
+        if (!options.liveEffects && this.settings.channelCount && options.channel >= this.settings.channelCount) {
           throw new Error('Selected input channel is unavailable. Select channel 1.');
         }
         track.onended = () => this.fail('Audio input disconnected. Reconnect and start again.');
         track.onmute = () => this.fail('Audio input became unavailable. Start again when ready.');
         const source = context.createMediaStreamSource(stream);
         const splitter = context.createChannelSplitter(Math.max(2, this.settings.channelCount ?? 2));
-        source.connect(splitter);
-        this.source = splitter;
+        if (options.liveEffects) {
+          this.source = source;
+        } else {
+          source.connect(splitter);
+          this.source = splitter;
+        }
       }
       this.worklet = new AudioWorkletNode(context, 'patchcraft-monitor', {
         numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1,
@@ -115,8 +121,8 @@ export class AudioEngine {
       this.filter.Q.value = 0.707;
       this.dry.gain.value = 1;
       this.wet.gain.value = 0;
-      this.source!.connect(this.worklet, this.sample ? 0 : options.channel, 0);
-      this.worklet.connect(this.dry).connect(this.level);
+      this.source!.connect(this.worklet, this.sample || options.liveEffects ? 0 : options.channel, 0);
+      if (!options.liveEffects) this.worklet.connect(this.dry).connect(this.level);
       this.drive = context.createGain();
       this.driveDry = context.createGain();
       this.driveWet = context.createGain();
@@ -134,11 +140,18 @@ export class AudioEngine {
         driveCurve[i] = Math.tanh((i / (driveCurve.length - 1)) * 2 - 1);
       }
       this.shaper.curve = driveCurve;
-      this.worklet.connect(this.filter);
+      if (!options.liveEffects) this.worklet.connect(this.filter);
       this.filter.connect(this.driveDry).connect(this.tremolo);
       this.filter.connect(this.drive).connect(this.shaper).connect(this.driveWet).connect(this.tremolo);
       this.tremolo.connect(this.wet).connect(this.level);
-      this.level.connect(context.destination);
+      if (options.liveEffects) {
+        this.liveEffects = new LiveEffects(context, this.worklet, this.level);
+        const ceiling = context.createWaveShaper();
+        ceiling.curve = Float32Array.from({length: 1025}, (_, i) => bounded(i / 512 - 1, -0.5, 0.5, 0));
+        this.level.connect(ceiling).connect(context.destination);
+      } else {
+        this.level.connect(context.destination);
+      }
       context.onstatechange = () => {
         if (!this.intentionalStop && context.state !== 'running') {
           this.interruptions++;
@@ -162,6 +175,14 @@ export class AudioEngine {
     this.dry.gain.setTargetAtTime(mix.dry, time, 0.015);
     this.wet.gain.setTargetAtTime(mix.wet, time, 0.015);
     this.filter.frequency.setTargetAtTime(bounded(cutoff, 80, context.sampleRate * 0.45, 2500), time, 0.02);
+  }
+
+  setLiveEffectOrder(order: readonly LiveEffectId[]) {
+    this.liveEffects?.setOrder(order);
+  }
+
+  updateLiveEffect(id: LiveEffectId, control: LiveEffectControl) {
+    this.liveEffects?.update(id, control);
   }
 
   // The adapter consumes controls only; camera processing never enters audio rendering.
@@ -212,6 +233,7 @@ export class AudioEngine {
     this.drive = undefined; this.shaper = undefined; this.tremolo = undefined;
     this.modulation = undefined; this.driveDry = undefined; this.driveWet = undefined;
     if (this.worklet) { this.worklet.port.onmessage = null; this.worklet.port.close(); }
+    this.liveEffects = undefined;
     this.worklet = undefined;
     this.source = undefined;
     this.level = undefined;

@@ -152,7 +152,6 @@ jobs:
           wranglerVersion: '4.158.0'
           command: pages deploy dist --project-name patchcraft --branch main --commit-dirty=true
       - name: Verify deployment
-        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         env:
           DEPLOYMENT_URL: https://patchcraft.pages.dev
         run: |
