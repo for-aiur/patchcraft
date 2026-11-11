@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://patchcraft-m1.pages.dev/patches/patch.schema.json",
+  "$id": "https://patchcraft.pages.dev/patches/patch.schema.json",
   "title": "Patchcraft control patch v1",
   "description": "Runtime validation also enforces acyclicity, port compatibility, unique node IDs, positive calibration/mapping ranges, ROI extents and MIDI range ordering.",
   "type": "object",

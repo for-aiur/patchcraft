@@ -1,4 +1,5 @@
 import { mountBuildInfo } from './build-info';
+import './brand.css';
 import './vision.css';
 import { CameraInput, type CameraSample } from './vision/camera';
 import { ControlGraph, starter, validatePatch, type Patch, type Signal } from './control/patch';
@@ -6,7 +7,7 @@ import { MidiOutput } from './midi/output';
 import type { Features } from './vision/features';
 
 document.querySelector('#app')!.innerHTML = `
-<header><a class="brand" href="/vision.html">◈ PATCHCRAFT</a><span class="tag">CAMERA → MIDI CC</span></header>
+<header><a class="brand" href="/" aria-label="Patchcraft home"><img src="/patchcraft-mark.svg" alt=""> PATCHCRAFT</a><span class="tag">CAMERA → MIDI CC</span></header>
 <main>
   <div class="intro"><p class="eyebrow">CONTROL YOUR EXISTING RIG</p><h1>Light. Motion.<br><em>Your sound.</em></h1><p>Patchcraft sends a changing MIDI CC from a camera signal or simulator.<br>Assign it to parameters in your DAW or plugin.</p></div>
   <div class="workspace">
@@ -137,7 +138,7 @@ function renderValues(source: 'camera' | 'simulator' = select('source').value as
   say('input-state', source === 'camera' ? (camera.stream ? 'CAMERA LIVE' : 'CAMERA OFF') : 'SIMULATOR');
   $('input-state').classList.toggle('live', source === 'camera' && !!camera.stream);
   const latestAge = lastSample ? Math.max(0, performance.now() - lastSample.capturedAt) : undefined;
-  say('diagnostics', `${source === 'camera' ? `Camera frames: ${camera.frames} · skipped: ${camera.skipped} · camera signal age: ${latestAge?.toFixed(1) ?? '—'} ms` : `Simulator signal: ${number('sim-slider').toFixed(2)} · ${$<HTMLButtonElement>('sim-sweep').getAttribute('aria-pressed') === 'true' ? 'repeatable sweep running' : 'manual'}`}\nMIDI: ${midi.armed ? 'sending' : 'stopped'} · sends: ${midi.sent} · suppressed duplicates/rate limit: ${midi.suppressed} · latest CC value: ${midi.lastValue ?? '—'} · send-call delay p95: ${midi.delays.length ? [...midi.delays].sort((a,b)=>a-b)[Math.floor((midi.delays.length-1)*0.95)].toFixed(2) : '—'} ms`);
+  say('diagnostics', `${source === 'camera' ? `Camera frames: ${camera.frames} · skipped: ${camera.skipped} · camera signal age: ${latestAge?.toFixed(1) ?? '-'} ms` : `Simulator signal: ${number('sim-slider').toFixed(2)} · ${$<HTMLButtonElement>('sim-sweep').getAttribute('aria-pressed') === 'true' ? 'repeatable sweep running' : 'manual'}`}\nMIDI: ${midi.armed ? 'sending' : 'stopped'} · sends: ${midi.sent} · suppressed duplicates/rate limit: ${midi.suppressed} · latest CC value: ${midi.lastValue ?? '-'} · send-call delay p95: ${midi.delays.length ? [...midi.delays].sort((a,b)=>a-b)[Math.floor((midi.delays.length-1)*0.95)].toFixed(2) : '-'} ms`);
 }
 
 camera.onSample = sample => processFeatures(sample.features, sample.capturedAt, 'camera', sample);

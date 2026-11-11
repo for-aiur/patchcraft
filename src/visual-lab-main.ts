@@ -3,6 +3,7 @@ import { mountBuildInfo } from './build-info';
 import { calibrate, validateCalibration, type Calibration } from './control/calibration';
 import './visual-lab.css';
 import './visual-lab-components.css';
+import './site.css';
 import type { analyze } from './vision/analysis';
 import type { Features } from './vision/features';
 import { imageModules, validateImageStage, type ImagePipelineSettings, type ImageStage } from './vision/pipeline';
@@ -19,7 +20,7 @@ type Recipe = {
 };
 const recipes = Object.values(import.meta.glob('./recipes/*.json', { eager: true, import: 'default' })) as Recipe[];
 document.querySelector('#app')!.innerHTML = `
-<header><a class="brand" href="/vision.html">◈ PATCHCRAFT</a><span class="tag">VISUAL SIGNAL LAB</span></header>
+<header class="site-header"><a class="site-brand" href="/" aria-label="Patchcraft home"><img src="/patchcraft-mark.svg" alt=""><span>patchcraft</span></a><nav class="site-nav" aria-label="Main navigation"><a class="nav-lab" href="/visual-lab" aria-current="page">Visual Signal Lab <span aria-hidden="true">↗</span></a><a href="/about.html">About</a><a href="/support.html">Support</a></nav></header>
 <main>
   <div class="layout">
     <section class="panel setup-panel">
@@ -78,7 +79,7 @@ document.querySelector('#app')!.innerHTML = `
       <p id="diagnostics" class="mini">No frame analyzed yet.</p>
     </section>
   </div>
-  <footer></footer>
+  <footer class="site-footer"><a class="footer-brand" href="/">PATCHCRAFT</a><span>Open source by YNY Labs</span><div class="footer-links"><a href="/about.html">About</a><a href="/support.html">Support</a><a href="https://github.com/for-aiur/patchcraft">GitHub</a></div></footer>
 </main>`;
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -208,7 +209,7 @@ function setupWorker() {
       const value = stageSignals[index]?.values[port as keyof ReturnType<typeof analyze>['values']];
       const positionUnavailable = ['x','y'].includes(port) && !stageSignals[index]?.values.positionValid;
       const largestUnavailable = ['largestX','largestY'].includes(port) && !stageSignals[index]?.values.largestValid;
-      node.textContent = value === undefined || positionUnavailable || largestUnavailable ? 'No region' : typeof value !== 'number' ? '—' : port === 'blobs' ? String(value) : value.toFixed(3);
+      node.textContent = value === undefined || positionUnavailable || largestUnavailable ? 'No region' : typeof value !== 'number' ? '-' : port === 'blobs' ? String(value) : value.toFixed(3);
     }
     el('pipeline-state').textContent = 'Analyzing · 15 fps max';
     el('pipeline-state').classList.add('live'); el('signal-state').textContent = signalKeys.some(key=>el<HTMLSelectElement>(`${key}-source`).value)?'Signal connected':'Connect a filter output'; el('signal-state').classList.add('live'); syncGraph(result.capturedAt);
@@ -444,7 +445,7 @@ function drawPipeline() {
     }
     card.append(measurements);
     const ports=document.createElement('div');ports.className='output-ports';
-    for(const [port,label] of Object.entries(outputLabels).filter(([port])=>stage.measurements?.includes(port))){const button=document.createElement('button');button.className='output-port';button.type='button';button.draggable=true;button.dataset.connection=`${stage.id}|${port}`;button.textContent=`● ${label}`;const reading=document.createElement('output');reading.dataset.measurementValue=`${stage.id}|${port}`;reading.className='measurement-value';reading.textContent='—';reading.setAttribute('aria-label',`${label} before weighting and smoothing`);button.append(reading);button.title='Drag this output onto a signal input';button.addEventListener('dragstart',event=>{event.dataTransfer!.setData('text/patchcraft-output',button.dataset.connection!);event.dataTransfer!.effectAllowed='link';});ports.append(button);}
+    for(const [port,label] of Object.entries(outputLabels).filter(([port])=>stage.measurements?.includes(port))){const button=document.createElement('button');button.className='output-port';button.type='button';button.draggable=true;button.dataset.connection=`${stage.id}|${port}`;button.textContent=`● ${label}`;const reading=document.createElement('output');reading.dataset.measurementValue=`${stage.id}|${port}`;reading.className='measurement-value';reading.textContent='-';reading.setAttribute('aria-label',`${label} before weighting and smoothing`);button.append(reading);button.title='Drag this output onto a signal input';button.addEventListener('dragstart',event=>{event.dataTransfer!.setData('text/patchcraft-output',button.dataset.connection!);event.dataTransfer!.effectAllowed='link';});ports.append(button);}
     if(stage.enabled&&stage.measurements?.length){const group=document.createElement('section');group.className='measurement-group';const name=document.createElement('strong');name.textContent=`${index+1}. ${module.label}`;group.append(name,ports);el('measured-outputs').append(group);}
     const type=document.createElement('div');type.className=`image-type${flow.mismatch?' incompatible':''}`;
     if (!stage.enabled) type.textContent=`Bypassed · sends the incoming ${kindName(flow.inputKind).toLowerCase()} unchanged${stage.measurements?.length?'; measured outputs are off':''}.`;

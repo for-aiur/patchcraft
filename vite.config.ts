@@ -17,5 +17,5 @@ export default defineConfig({
   plugins: [{ name: 'patchcraft-build-info', generateBundle() { this.emitFile({ type:'asset', fileName:'build-info.json', source:JSON.stringify(buildInfo) }); } }],
   server: { proxy: { '/api': process.env.AUTHORING_PROXY || 'http://127.0.0.1:3001' } },
   preview: { proxy: { '/api': process.env.AUTHORING_PROXY || 'http://127.0.0.1:3001' } },
-  build: { rollupOptions: { input: { audio:'index.html', vision:'vision.html', visualLab:'visual-lab.html' } } },
+  build: { rollupOptions: { input: { home:'index.html', audio:'audio.html', about:'about.html', support:'support.html', vision:'vision.html', visualLab:'visual-lab.html' } } },
 });

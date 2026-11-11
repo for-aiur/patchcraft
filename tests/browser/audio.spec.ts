@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 test('synthetic worklet session, controls, report and restart', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/audio.html');
   await expect(page.getByText('Physical round-trip', {exact:true})).toBeVisible();
   await page.locator('#rate').selectOption('48000');
   await page.locator('#input').selectOption('sample');
@@ -27,7 +27,7 @@ test('permission failure leaves controls recoverable', async ({ page }) => {
     navigator.mediaDevices.getUserMedia = () =>
       Promise.reject(new DOMException('Microphone permission denied', 'NotAllowedError'));
   });
-  await page.goto('/');
+  await page.goto('/audio.html');
   await page.locator('#start').click();
   await expect(page.locator('#status')).toContainText('Could not start');
   await expect(page.locator('#start')).toBeEnabled();
@@ -39,7 +39,7 @@ test('permission failure leaves controls recoverable', async ({ page }) => {
 test('fake microphone stream exercises capture and releases tracks', async ({ browser }) => {
   const context = await browser.newContext({permissions:['microphone']});
   const page = await context.newPage();
-  await page.goto('/');
+  await page.goto('/audio.html');
   await page.locator('#devices').click();
   await expect(page.locator('#status')).toContainText('Devices found');
   await page.locator('#start').click();
@@ -57,7 +57,7 @@ test('cancelling pending capture does not interrupt a replacement session', asyn
       document.documentElement.dataset.capturePending = 'true';
     });
   });
-  await page.goto('/');
+  await page.goto('/audio.html');
   await page.locator('#start').click();
   await expect(page.locator('html')).toHaveAttribute('data-capture-pending', 'true');
   await page.locator('#stop').click();

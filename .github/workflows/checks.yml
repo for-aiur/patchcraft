@@ -3,6 +3,13 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: Deploy the selected commit to the staging alias
+        type: choice
+        options: [staging]
+        required: true
+        default: staging
   release:
     types: [published]
 permissions:
@@ -20,10 +27,10 @@ jobs:
       - name: Type check, production build, unit and browser tests
         run: docker compose run -T --name patchcraft-ci-tests tests
       - name: Extract tested static build
-        if: (github.ref == 'refs/heads/main' && github.event_name != 'pull_request') || github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'staging')
         run: docker cp patchcraft-ci-tests:/app/dist ./dist
       - name: Save tested static build
-        if: (github.ref == 'refs/heads/main' && github.event_name != 'pull_request') || github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'staging')
         uses: actions/upload-artifact@v4
         with:
           name: static-site-${{ github.sha }}
@@ -36,39 +43,90 @@ jobs:
           docker rm -f patchcraft-ci-tests || true
           docker compose down --volumes
 
+  deploy-staging:
+    name: Deploy staging preview
+    needs: tests
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'staging'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudflare-pages-staging
+      cancel-in-progress: true
+    environment:
+      name: staging
+      url: https://stage.patchcraft.pages.dev/visual-lab
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo '::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to repository or preview environment secrets.'
+            exit 1
+          fi
+      - name: Ensure Cloudflare Pages project exists
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          project_url="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/patchcraft"
+          status=$(curl --silent --show-error -o "$RUNNER_TEMP/pages-project.json" -w '%{http_code}' \
+            --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$project_url")
+          if [ "$status" = '404' ]; then
+            status=$(curl --silent --show-error -o "$RUNNER_TEMP/pages-project-create.json" -w '%{http_code}' \
+              --request POST "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects" \
+              --header "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              --header 'Content-Type: application/json' \
+              --data '{"name":"patchcraft","production_branch":"main"}')
+            if [ "$status" != '200' ]; then cat "$RUNNER_TEMP/pages-project-create.json"; exit 1; fi
+            jq -e '.success == true' "$RUNNER_TEMP/pages-project-create.json" >/dev/null
+          elif [ "$status" != '200' ]; then
+            cat "$RUNNER_TEMP/pages-project.json"
+            exit 1
+          else
+            jq -e '.success == true' "$RUNNER_TEMP/pages-project.json" >/dev/null
+          fi
+      - name: Download tested static build
+        uses: actions/download-artifact@v4
+        with:
+          name: static-site-${{ github.sha }}
+          path: dist/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deploy tested branch build
+        id: publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.158.0'
+          command: pages deploy dist --project-name patchcraft --branch stage --commit-dirty=true
+      - name: Verify preview
+        env:
+          DEPLOYMENT_URL: ${{ steps.publish.outputs.pages-deployment-alias-url }}
+        run: |
+          test -n "$DEPLOYMENT_URL"
+          for route in / /visual-lab /about.html /support.html; do
+            curl --fail --silent --show-error --location --retry 5 --retry-delay 3 --retry-all-errors "$DEPLOYMENT_URL$route" -o /dev/null
+          done
+          echo "Feature preview: $DEPLOYMENT_URL" >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deploy Cloudflare Pages
     needs: tests
-    if: (github.ref == 'refs/heads/main' && github.event_name != 'pull_request') || github.event_name == 'release'
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     concurrency:
       group: cloudflare-pages-production
       cancel-in-progress: false
     environment:
       name: production
-      url: https://patchcraft-m1.pages.dev/visual-lab
+      url: https://patchcraft.pages.dev/visual-lab
     steps:
       - uses: actions/checkout@v4
-      - name: Skip superseded main builds
-        id: current
-        if: github.event_name != 'release'
-        env:
-          BUILD_SHA: ${{ github.sha }}
-        run: |
-          latest_sha=$(git ls-remote origin refs/heads/main | cut -f1)
-          test -n "$latest_sha"
-          if [ "$latest_sha" = "$BUILD_SHA" ]; then
-            echo 'deploy=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'deploy=false' >> "$GITHUB_OUTPUT"
-            echo 'A newer main commit exists; skipping this deployment.' >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: Select published release
-        id: release
-        if: github.event_name == 'release'
-        run: echo 'deploy=true' >> "$GITHUB_OUTPUT"
       - name: Check Cloudflare credentials
-        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -78,28 +136,25 @@ jobs:
             exit 1
           fi
       - name: Download tested static build
-        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         uses: actions/download-artifact@v4
         with:
           name: static-site-${{ github.sha }}
           path: dist/
       - uses: actions/setup-node@v4
-        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         with:
           node-version: '22'
       - name: Deploy tested build
         id: publish
-        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4.158.0'
-          command: pages deploy dist --project-name patchcraft-m1 --branch main --commit-dirty=true
+          command: pages deploy dist --project-name patchcraft --branch main --commit-dirty=true
       - name: Verify deployment
         if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         env:
-          DEPLOYMENT_URL: ${{ steps.publish.outputs.deployment-url }}
+          DEPLOYMENT_URL: https://patchcraft.pages.dev
         run: |
           test -n "$DEPLOYMENT_URL"
           curl --fail --silent --show-error --location --retry 5 --retry-delay 3 --retry-all-errors "$DEPLOYMENT_URL/visual-lab" -o /tmp/visual-lab.html
