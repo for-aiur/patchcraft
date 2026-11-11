@@ -81,7 +81,10 @@ test('hidden-page control survives missing animation callbacks and temporary vid
   await page.locator('#recipe-select').selectOption('motion-pulse');
   await page.locator('#demo-start').click();
   await expect(page.locator('.stage-preview.has-frame')).not.toHaveCount(0);
-  await page.locator('#midi-output').evaluate(select => select.add(new Option('Background test', 'background-test')));
+  await page.locator('#add-cc-route').click();
+  await expect(page.locator('.cc-route')).toHaveCount(1);
+  await page.locator('#midi-toggle').click();
+  await expect(page.locator('#midi-status')).toContainText('MIDI ports loaded');
   await page.locator('#midi-output').selectOption('background-test');
   await page.locator('#midi-toggle').click();
   await expect(page.locator('#midi-state')).toHaveText('SENDING');
@@ -110,6 +113,10 @@ test('workspace export preserves CC destinations and restores MIDI disarmed', as
   await page.locator('#recipe-select').selectOption('motion-pulse');
   await page.locator('#add-cc-route').click();
   const routes = page.locator('.cc-route');
+  await expect(routes).toHaveCount(1);
+  await routes.nth(0).locator('.route-cc').fill('21');
+  await page.locator('#add-cc-route').click();
+  await expect(routes).toHaveCount(2);
   await routes.nth(1).locator('.route-cc').fill('22');
   await routes.nth(1).locator('.route-channel').fill('2');
   await routes.nth(1).locator('.route-enabled').uncheck();
