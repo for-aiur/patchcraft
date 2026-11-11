@@ -120,7 +120,6 @@ test('workspace export preserves CC destinations and restores MIDI disarmed', as
   await routes.nth(1).locator('.route-cc').fill('22');
   await routes.nth(1).locator('.route-channel').fill('2');
   await routes.nth(1).locator('.route-enabled').uncheck();
-  const enabledMappings = await routes.locator('.route-enabled').evaluateAll(inputs => inputs.map(input => (input as HTMLInputElement).checked));
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#save-workspace').click();
   const download = await downloadPromise;
@@ -132,7 +131,7 @@ test('workspace export preserves CC destinations and restores MIDI disarmed', as
   expect(saved.recipe.midiRoutes).toHaveLength(2);
   expect(saved.recipe.midiRoutes[0]).toMatchObject({ signalId: 'scene-energy', cc: 21, channel: 1, min: 0, max: 127 });
   expect(saved.recipe.midiRoutes[1]).toMatchObject({ signalId: 'scene-energy', cc: 22, channel: 2, min: 0, max: 127 });
-  expect(saved.recipe.midiRoutes.map((route: { enabled: boolean }) => route.enabled)).toEqual(enabledMappings);
+  expect(saved.recipe.midiRoutes.every((route: { enabled: boolean }) => !route.enabled)).toBeTruthy();
   await page.locator('#workspace-file').setInputFiles({ name: 'multi-route.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
   await expect(page.locator('.cc-route')).toHaveCount(2);
   await expect(routes.nth(1).locator('.route-cc')).toHaveValue('22');
