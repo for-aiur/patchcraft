@@ -1,16 +1,17 @@
 # Cloudflare Pages deployment
 
 The `Checks` workflow runs the Docker Compose test suite on pushes and pull requests.
-After a successful `main` run, it uploads the exact static files produced inside
-the test container to the Cloudflare Pages project `patchcraft`. The YNY-19
-feature branch also publishes a tested preview at its branch alias. Pull
-requests and other branches do not deploy. The optional authoring API,
-Gemini credentials and database are not included in the static deployment.
+Pushes and pull requests do not deploy. Publishing a GitHub release uploads the
+exact static files produced inside the test container to the Cloudflare Pages
+project `patchcraft`. A staging preview is available on demand from Actions →
+Checks → Run workflow. The optional authoring API, Gemini credentials and database
+are not included in the static deployment.
 
 The workflow expects a Pages project whose slug is `patchcraft`. Cloudflare does
 not allow changing a `pages.dev` subdomain. The first YNY-19 preview creates the
-new project, then the main deployment publishes the production site. Keep the
-previous project until the new deployment is verified.
+new project. The staging workflow creates it if needed, and the first release
+publishes the production site. Keep the previous project until the new deployment
+is verified.
 
 ## One-time configuration
 
@@ -23,24 +24,25 @@ In GitHub, open repository **Settings → Secrets and variables → Actions** an
 - `CLOUDFLARE_API_TOKEN`: the dedicated token.
 - `CLOUDFLARE_ACCOUNT_ID`: the account ID from the Cloudflare dashboard.
 
-Repository secrets or secrets on the `production` GitHub environment are supported.
-Never put token values in source, PR descriptions or workflow logs. Configure the
-`production` environment to permit deployment from `main` only. If required
-reviewers are configured, deployments wait for their approval.
+Repository secrets or secrets on the `staging` and `production` GitHub environments
+are supported. Never put token values in source, PR descriptions or workflow logs.
+The Pages API token should be limited to the required Cloudflare account and Pages
+permissions. If required reviewers are configured on either environment, staging
+or production deployments wait for their approval.
 
 ## Publishing and verification
 
-Merge an approved PR into `main`. The workflow runs build, unit, integration and
-browser checks, stores `dist` as an artifact, then publishes that tested artifact.
-Deployments are serialized; a build superseded by a newer `main` commit is skipped.
-The last successful deployment remains live when checks or publishing fail.
-The final step fetches the deployment's Visual Lab page and checks its JavaScript
-asset against the tested artifact. Its deployment URL appears in the job summary.
+Publish a GitHub release whose tag matches `package.json`. The workflow runs build,
+unit, integration and browser checks, stores `dist` as an artifact, then publishes
+that tested artifact to production. Deployments are serialized. The last successful
+deployment remains live when checks or publishing fail. The final step fetches the
+production Visual Lab page and checks its JavaScript asset against the tested
+artifact. Its deployment URL appears in the job summary.
 
-The workflow can also be run manually through Actions → Checks → Run workflow,
-selecting `main`. All checks still run. If a secret was missing, add it and rerun
-the failed deploy job while the build artifact is available (seven days), or run
-the workflow again on `main`.
+For an occasional staging deployment, use Actions → Checks → Run workflow and leave
+`Deploy staging preview` selected. Tests still run first, then the tested build is
+published to the stable `stage` alias. This is manual, so routine commits do not
+consume Pages deployments. If a secret was missing, add it and rerun the workflow.
 
 Public URL: https://patchcraft.pages.dev/visual-lab
 
@@ -64,8 +66,8 @@ version source. Main builds are labeled `v<version> · dev`, followed by a short
 commit link; CI passes the full commit SHA into the Compose build.
 The same metadata is published as `/build-info.json`.
 
-Publishing a GitHub release runs the same checks and deploys the tested release
-artifact to production. The release tag must match `package.json` as
+Publishing a GitHub release runs the same checks and automatically deploys the
+tested release artifact to production. The release tag must match `package.json` as
 `v<version>`; the visible badge then links to that exact GitHub release. Create
-the release from its matching source commit. Main branch builds remain labeled
+the release from its matching source commit. Development builds remain labeled
 as development builds.
