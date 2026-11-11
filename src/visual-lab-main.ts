@@ -3,6 +3,7 @@ import { mountBuildInfo } from './build-info';
 import { calibrate, validateCalibration, type Calibration } from './control/calibration';
 import './visual-lab.css';
 import './visual-lab-components.css';
+import './visual-lab-polish.css';
 import './site.css';
 import type { analyze } from './vision/analysis';
 import type { Features } from './vision/features';
@@ -18,32 +19,46 @@ type Recipe = {
   image: ImagePipelineSettings; weights: { brightness: number; red: number; motion: number };
   midi: { cc: number; channel: number }; midiRoutes?: Array<{id?:string;name?:string;signalId?:string;cc:number;channel:number;min:number;max:number;enabled:boolean}>; controlSignals?: ControlSignal[]; target: string; targetColor?: string; routes?: Record<string,string>; smoothingMs?: number; steps: string[];
 };
+type WorkspaceFile = {
+  format: 'patchcraft-visual-workspace';
+  workspaceVersion: 1;
+  name: string;
+  activeSignalId: string;
+  source: { loop: boolean };
+  recipe: Recipe;
+};
 const recipes = Object.values(import.meta.glob('./recipes/*.json', { eager: true, import: 'default' })) as Recipe[];
 document.querySelector('#app')!.innerHTML = `
 <header class="site-header"><a class="site-brand" href="/" aria-label="Patchcraft home"><img src="/patchcraft-mark.svg" alt=""><span>patchcraft</span></a><nav class="site-nav" aria-label="Main navigation"><a class="nav-lab" href="/visual-lab" aria-current="page">Visual Signal Lab <span aria-hidden="true">↗</span></a><a href="/about.html">About</a><a href="/support.html">Support</a></nav></header>
 <main>
+  <div class="workspace-bar" role="group" aria-label="Workspace">
+    <label class="workspace-name-field"><span class="visually-hidden">Workspace name</span><input id="workspace-name" aria-label="Workspace name" maxlength="80" value="Untitled workspace" readonly><button id="edit-workspace-name" class="workspace-name-edit" type="button" aria-label="Edit workspace name" title="Edit workspace name"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m13.8 3.3 2.9 2.9M4 16l3.3-.7L16 6.6a1.8 1.8 0 0 0-2.6-2.6l-8.7 8.7L4 16Z"/></svg></button></label>
+    <button id="new-workspace" type="button">New</button>
+    <button id="open-workspace" type="button">Open</button>
+    <button id="save-workspace" type="button">Save</button>
+    <input id="workspace-file" type="file" accept=".json,application/json" hidden>
+    <span id="workspace-status" role="status"></span>
+  </div>
   <div class="layout">
-    <section class="panel setup-panel">
-      <div class="section-title"><span>1 · CHOOSE A RECIPE</span><div class="recipe-heading-actions"><span id="source-state" class="badge">Choose a source</span><div class="recipe-file-actions" aria-label="Recipe file actions"><button id="load-recipe" class="icon-action" type="button" aria-label="Import recipe JSON" title="Import recipe JSON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0 4 4m-4-4L8 7M5 17v3h14v-3"/></svg></button><button id="save-recipe" class="icon-action" type="button" aria-label="Download recipe JSON" title="Download recipe JSON"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg></button></div></div></div>
-      <label>Recipe<select id="recipe-select"></select></label>
-      <label>Recipe name<input id="recipe-name" type="text" maxlength="80" value="Untitled recipe"></label>
-      <input id="recipe-file" type="file" accept="application/json,.json" hidden>
-      <p id="recipe-status" class="status" role="status">Start with a blank canvas or adjust a recipe, then download its JSON.</p>
-      <details class="recipe-guide"><summary>Recipe guide</summary><h2 id="recipe-title"></h2><p id="recipe-description" class="muted"></p>
-      <p id="recipe-tagline" class="promise"></p>
-      <ol id="recipe-steps" class="steps"></ol></details>
-    </section>
     <section class="panel source-panel">
-      <div class="section-title"><span>2 · CAMERA OR VIDEO</span><span id="pipeline-state" class="badge">Camera or video</span></div>
+      <div class="section-title"><span>SOURCE</span><span id="source-state" class="badge">Choose a source</span><span id="pipeline-state" class="badge" hidden></span></div>
       <div class="video-picker"><button id="video-select-button" class="video-select-button" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6.5h5l1.4 1.7H17v7.3H3zM3 6.5V4.8h5l1.4 1.7"/></svg><span>Choose video</span></button><span id="video-file-name">No video selected</span><input id="video-file" type="file" accept="video/*" hidden></div>
-      <div class="actions"><button id="demo-start" class="secondary">Play demo scene</button><button id="camera-start" class="secondary">Use camera</button><button id="source-stop" class="secondary">Stop</button><label class="check"><input id="video-loop" type="checkbox" checked> Loop</label></div>
+      <div class="actions"><button id="demo-start" class="secondary source-control-button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5 12 8l-7 4.5z"/></svg>Demo scene</button><button id="camera-start" class="secondary source-control-button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 5h2l1-1.5h5L11.5 5h2A1.5 1.5 0 0 1 15 6.5v5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 2 11.5v-5A1.5 1.5 0 0 1 3.5 5Z"/><circle cx="8" cy="9" r="2.4"/></svg>Use camera</button><button id="source-stop" class="secondary source-control-button source-stop-button" aria-label="Stop source" title="Stop source"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="4" width="8" height="8" rx="1"/></svg></button><label class="check"><input id="video-loop" type="checkbox" checked> Loop</label></div>
       <video id="preview" muted playsinline controls loop></video>
       <p id="source-status" class="status" role="status">Choose a video or start the camera. Video stays in this browser.</p>
       <canvas id="capture" width="160" height="90" hidden></canvas>
       <p class="hint">The worker analyzes a downscaled frame at up to 15 FPS. Old frames are skipped if processing is still busy.</p>
     </section>
     <section class="panel pipeline-panel">
-      <div class="section-title"><span>3 · IMAGE PIPELINE</span><span id="module-count" class="badge"></span></div>
+      <div class="section-title"><span>IMAGE PIPELINE</span><div class="pipeline-heading-actions"><span id="module-count" class="badge"></span><button id="load-recipe" class="patch-file-button" type="button" aria-label="Import patch" title="Import patch"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5M4 13v3h12v-3"/></svg></button><button id="save-recipe" class="patch-file-button" type="button" aria-label="Export patch" title="Export patch"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 12V3m0 0L6.5 6.5M10 3l3.5 3.5M4 13v3h12v-3"/></svg></button><input id="recipe-file" type="file" accept=".json,application/json" hidden></div></div>
+      <div class="patch-actions">
+        <label>Patch <select id="recipe-select"></select></label>
+        <label>Patch name <input id="recipe-name" maxlength="80"></label>
+      </div>
+      <p id="recipe-status" class="status" role="status"></p>
+      <details class="recipe-guide"><summary>Patch guide</summary><h2 id="recipe-title"></h2><p id="recipe-description" class="muted"></p>
+      <p id="recipe-tagline" class="promise"></p>
+      <ol id="recipe-steps" class="steps"></ol></details>
       <p class="muted">Each step sends an image to the next step. Some steps also expose measured values that can be routed separately to the signal mixer.</p>
       <div id="pipeline-stages" class="pipeline-stages"></div>
       <div class="pipeline-result"><div><strong>Final processed image</strong><span>Pipeline output · used by visual signal analysis</span></div><canvas id="processed-preview" width="160" height="90" aria-label="Final image passed to visual signal analysis"></canvas></div>
@@ -51,8 +66,8 @@ document.querySelector('#app')!.innerHTML = `
       <input id="target-color" type="color" value="#ff0000" hidden>
     </section>
     <section class="panel signal-panel">
-      <div class="section-title"><span>4 · NAMED SIGNAL · <span id="signal-name">Scene Energy</span></span><span id="signal-state" class="badge">No signal yet</span></div>
-      <div class="output-rack"><h3>Measured outputs</h3><p class="hint">Live measurements before weights and smoothing. Values are 0–1; region count shows the actual count (MIDI routing clamps it to 0–1). Drag an output to an input.</p><div id="measured-outputs"></div></div>
+      <div class="section-title"><span>NAMED SIGNAL · <span id="signal-name">Scene Energy</span></span><span id="signal-state" class="badge">No signal yet</span></div>
+      <div class="output-rack"><h3>Measured outputs</h3><p class="hint">Live values before weights and smoothing. Blob count is shown raw, then clamped to 0–1 for control. Drag an output to an input.</p><div id="measured-outputs"></div></div>
       <label class="route-label">Input 1<select id="brightness-source" class="signal-source"><option value="">Not connected</option></select></label><div class="signal input-node"><span>Input value</span><meter id="brightness-meter" min="0" max="1" value="0"></meter><output id="brightness-value">0.000</output></div>
       <label class="module-control"><span>Input 1 · weight</span><output id="brightness-weight-label"></output><input id="brightness-weight" type="range" min="0" max="1" step="0.01"></label>
       <label class="route-label">Input 2<select id="red-source" class="signal-source"><option value="">Not connected</option></select></label><div class="signal input-node"><span>Input value</span><meter id="red-meter" min="0" max="1" value="0"></meter><output id="red-value">0.000</output></div>
@@ -67,19 +82,19 @@ document.querySelector('#app')!.innerHTML = `
       <div class="signal-output-display"><div class="control-knob" id="control-knob" data-signal-output="scene-energy" draggable="true" role="meter" aria-label="MIDI control value" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><i></i><span id="knob-value">0</span></div><div class="signal-history"><div class="history-legend"><span>● Raw mix</span><span>● Smoothed output</span><small>Last 20 seconds · normalized 0–1</small></div><canvas id="signal-history" width="640" height="180" aria-label="Raw and smoothed signal over the last twenty seconds"></canvas></div></div><div class="pipe-output"><span>CONTROL OUTPUT</span><b>→ CC mapping</b></div>
     </section>
     <section class="panel wide midi-panel">
-      <div class="section-title"><span>5 · MIDI OUTPUT & MAPPING</span><span id="midi-state" class="badge">MIDI off</span></div>
+      <div class="section-title"><span>MIDI OUTPUT & MAPPING</span><span id="midi-state" class="badge">MIDI off</span></div>
       <p class="muted">Suggested target: <strong id="recipe-target"></strong>. Open MIDI Learn in your plugin or DAW.</p>
       <div class="midi-connection"><label>MIDI output<select id="midi-output"><option value="">Choose MIDI output</option></select></label></div>
       <div id="legacy-midi-settings" hidden><input id="midi-cc" type="number" min="0" max="119" value="74"><input id="midi-channel" type="number" min="1" max="16" value="1"></div>
       <div class="mapping-heading"><div><h3>Active CC mappings</h3><p>Named signal → CC and channel. Click a mapping to focus it for MIDI Learn.</p></div><span id="mapping-count" class="badge">0 mappings</span><button id="add-cc-route" class="add-mapping-button" type="button" aria-label="Add mapping" title="Add mapping"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button></div>
-      <div id="cc-routes"><div class="cc-route"><label class="route-enabled-label" title="Enable mapping"><input class="route-enabled" type="checkbox" checked><span>On</span></label><label class="mapping-signal-label">Signal<select class="route-signal"></select></label><label class="route-cc-label">CC<input class="route-cc" type="number" min="0" max="119" value="74"></label><label class="route-channel-label">Channel<input class="route-channel" type="number" min="1" max="16" value="1"></label><button type="button" class="remove-cc-route" aria-label="Remove mapping" disabled>×</button></div></div>
+      <div id="cc-routes"><div class="cc-route"><label class="route-enabled-label" title="Enable mapping"><input class="route-enabled" type="checkbox" checked><span>On</span></label><label class="mapping-signal-label">Signal<select class="route-signal"></select></label><label class="route-cc-label">CC<input class="route-cc" type="number" min="0" max="119" value="74"></label><label class="route-channel-label">Channel<input class="route-channel" type="number" min="1" max="16" value="1"></label><div class="route-live-value" title="Live MIDI CC value"><span>VALUE</span><meter class="route-live-meter" min="0" max="127" value="0"></meter><output class="route-live-number">0</output></div><button type="button" class="remove-cc-route" aria-label="Remove mapping" title="Remove mapping" disabled>×</button></div></div>
       <label class="isolation-toggle"><input id="isolate-cc" type="checkbox"><span class="toggle-track"></span><span><strong>Send focused channel only</strong><small>Turn on when your instrument is learning a parameter.</small></span></label>
       <div class="actions"><button id="midi-toggle" class="primary">Start MIDI output</button></div>
       <p id="midi-status" class="status" role="status">Stop remains active until you choose a MIDI port and start output.</p>
       <p id="diagnostics" class="mini">No frame analyzed yet.</p>
     </section>
   </div>
-  <footer class="site-footer"><a class="footer-brand" href="/">PATCHCRAFT</a><span>Open source by YNY Labs</span><div class="footer-links"><a href="/about.html">About</a><a href="/support.html">Support</a><a href="https://github.com/for-aiur/patchcraft">GitHub</a></div></footer>
+  <footer class="site-footer"><a class="footer-brand" href="/">PATCHCRAFT</a><div class="footer-links"><a href="/about.html">About</a><a href="/support.html">Support</a><a href="https://github.com/for-aiur/patchcraft">GitHub</a></div></footer>
 </main>`;
 
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -152,18 +167,67 @@ function syncGraph(at: number) {
     if(tab)tab.textContent=String(Math.round(value*127));
   }
   const control = signalValues.get('scene-energy') ?? 0;
-  const combined = control;
-  el<HTMLMeterElement>('mix-meter').value = combined;
+  const mainSignal=controlSignals.find(signal=>signal.id==='scene-energy');
+  const connectedInputs=mainSignal?.inputs.filter(item=>item.source&&item.weight>0)??[];
+  const totalWeight=connectedInputs.reduce((sum,item)=>sum+item.weight,0);
+  const rawMix=mainSignal?.enabled&&totalWeight>0
+    ? connectedInputs.reduce((sum,item)=>sum+calibrate(measurementValue(item.source,mainSignal.id),item.calibration)*item.weight,0)/totalWeight
+    : 0;
+  updateMappingLiveValues();
+  el<HTMLMeterElement>('mix-meter').value = rawMix;
   el<HTMLMeterElement>('response-meter').value = control;
-  el('mix-value').textContent = combined.toFixed(3);
-  signalHistory.push({at,raw:combined,smoothed:control});signalHistory=signalHistory.filter(point=>point.at>=at-20000).slice(-400);drawSignalHistory(at);
+  el('mix-value').textContent = rawMix.toFixed(3);
+  signalHistory.push({at,raw:rawMix,smoothed:control});signalHistory=signalHistory.filter(point=>point.at>=at-20000).slice(-400);drawSignalHistory(at);
   el('response-value').textContent = control.toFixed(3);
   el('control-knob').style.setProperty('--angle', `${-135+control*270}deg`); el('knob-value').textContent=String(Math.round(control*127)); el('control-knob').setAttribute('aria-valuenow',String(Math.round(control*127)));
   if (midi.armed) { for (const route of routeOutputs) { const row=[...document.querySelectorAll<HTMLElement>('.cc-route')].find(item=>item.dataset.routeId===route.id);if(!row||!route.output.armed||!row.querySelector<HTMLInputElement>('.route-enabled')!.checked||(input('isolate-cc').checked&&route.id!==focusedRouteId))continue;const signalId=row.querySelector<HTMLSelectElement>('.route-signal')!.value;if(!controlSignals.find(signal=>signal.id===signalId)?.enabled)continue;route.output.send(signalValues.get(signalId)??0,performance.now(),at); } el('midi-state').textContent = midi.armed ? 'SENDING' : 'MIDI off'; }
   el('midi-status').textContent = midi.reason;
   el('diagnostics').textContent = `Frames ${frames} · skipped ${skipped} · worker ${processingMs.toFixed(2)} ms · frame age ${(performance.now() - at).toFixed(1)} ms · MIDI sends ${midi.sent}`;
 }
-function drawSignalHistory(now:number){const canvas=el<HTMLCanvasElement>('signal-history'),ctx=canvas.getContext('2d')!,w=canvas.width,h=canvas.height,left=30,right=w-12,top=12,bottom=h-26;ctx.clearRect(0,0,w,h);ctx.font='11px system-ui';ctx.lineWidth=1;for(const value of [0,.25,.5,.75,1]){const y=bottom-value*(bottom-top);ctx.strokeStyle='#39414d';ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();ctx.fillStyle='#a0aabc';ctx.fillText(String(value),2,y+4);}for(const seconds of [20,15,10,5,0]){const x=right-seconds/20*(right-left);ctx.fillStyle='#a0aabc';ctx.fillText(seconds===0?'now':`−${seconds}s`,Math.max(left,x-12),h-7);}for(const [key,color] of [['raw','#8194b8'],['smoothed','#c8ff52']] as const){ctx.strokeStyle=color;ctx.lineWidth=key==='raw'?1.3:2.5;ctx.beginPath();signalHistory.forEach((point,index)=>{const x=right-(now-point.at)/20000*(right-left),y=bottom-point[key]*(bottom-top);if(index===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();}}
+function drawSignalHistory(now:number){
+  const canvas=el<HTMLCanvasElement>('signal-history');
+  const bounds=canvas.getBoundingClientRect();
+  const ratio=Math.max(1,window.devicePixelRatio||1);
+  const w=Math.max(1,bounds.width),h=Math.max(1,bounds.height);
+  const pixelWidth=Math.round(w*ratio),pixelHeight=Math.round(h*ratio);
+  if(canvas.width!==pixelWidth)canvas.width=pixelWidth;
+  if(canvas.height!==pixelHeight)canvas.height=pixelHeight;
+  const ctx=canvas.getContext('2d')!;
+  ctx.setTransform(ratio,0,0,ratio,0,0);
+  ctx.clearRect(0,0,w,h);
+  const left=44,right=w-38,top=12,bottom=h-24;
+  ctx.font='11px system-ui';ctx.lineWidth=1;ctx.textBaseline='middle';ctx.textAlign='right';
+  for(const value of [0,.25,.5,.75,1]){
+    const y=bottom-value*(bottom-top);
+    ctx.strokeStyle='#39414d';ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();
+    ctx.fillStyle='#a0aabc';ctx.fillText(value.toFixed(value===0||value===1?0:2),left-8,y);
+  }
+  ctx.textBaseline='alphabetic';ctx.textAlign='center';ctx.fillStyle='#a0aabc';
+  for(const seconds of [20,15,10,5,0]){
+    const x=left+(20-seconds)/20*(right-left),label=seconds===0?'now':`−${seconds}s`;
+    const half=ctx.measureText(label).width/2;
+    ctx.fillText(label,Math.max(left+half,Math.min(right-half,x)),h-4);
+  }
+  for(const [key,color] of [['raw','#8194b8'],['smoothed','#c8ff52']] as const){
+    ctx.save();ctx.beginPath();ctx.rect(left,top,right-left,bottom-top);ctx.clip();ctx.strokeStyle=color;ctx.lineWidth=key==='raw'?1.3:2.5;ctx.beginPath();
+    signalHistory.forEach((point,index)=>{
+      const x=left+(20-(now-point.at)/1000)/20*(right-left),y=bottom-point[key]*(bottom-top);
+      if(index===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });ctx.stroke();ctx.restore();
+  }
+}
+function updateMappingLiveValues(){
+  for(const row of document.querySelectorAll<HTMLElement>('.cc-route')){
+    const signalId=row.querySelector<HTMLSelectElement>('.route-signal')?.value??'';
+    const value=Math.max(0,Math.min(1,signalValues.get(signalId)??0));
+    const cc=Number(row.querySelector<HTMLInputElement>('.route-cc')?.value??74);
+    const midiValue=Math.round(value*127);
+    const meter=row.querySelector<HTMLMeterElement>('.route-live-meter'),output=row.querySelector<HTMLOutputElement>('.route-live-number');
+    if(meter)meter.value=midiValue;
+    if(output)output.value=String(midiValue);
+    row.setAttribute('aria-label',`${signalById(signalId)?.name??'Signal'} to CC ${Number.isInteger(cc)?cc:74}, channel ${row.querySelector<HTMLInputElement>('.route-channel')?.value??1}, live value ${midiValue}`);
+  }
+}
 function drawRegionOverlay(canvas: HTMLCanvasElement, analysis: ReturnType<typeof analyze>) {
   const bounds=analysis.largestBounds;if(!bounds)return;
   const ctx=canvas.getContext('2d')!,x=analysis.values.largestX*(canvas.width-1),y=analysis.values.largestY*(canvas.height-1);
@@ -179,7 +243,7 @@ function setupWorker() {
     const result = event.data as { generation: number; capturedAt: number; error?: string; features?: Features; processed?: Uint8ClampedArray; stageOutputs?: Array<{ index: number; pixels: Uint8ClampedArray; analysis: ReturnType<typeof analyze> }>; processingMs?: number };
     if (result.generation !== generation || result.generation !== current) return;
     pending = false;
-    if (result.error || !result.features || !result.processed) { el('pipeline-state').textContent = result.error ?? 'Processing failed'; return; }
+    if (result.error || !result.features || !result.processed) { el('pipeline-state').hidden = false; el('pipeline-state').textContent = result.error ?? 'Processing failed'; return; }
     stageSignals = (result.stageOutputs ?? []).map(output => output.analysis);
     if (performance.now() - result.capturedAt > 500) return;
     processingMs = result.processingMs ?? 0; latest = result.features; latestAt = result.capturedAt;
@@ -211,7 +275,7 @@ function setupWorker() {
       const largestUnavailable = ['largestX','largestY'].includes(port) && !stageSignals[index]?.values.largestValid;
       node.textContent = value === undefined || positionUnavailable || largestUnavailable ? 'No region' : typeof value !== 'number' ? '-' : port === 'blobs' ? String(value) : value.toFixed(3);
     }
-    el('pipeline-state').textContent = 'Analyzing · 15 fps max';
+    el('pipeline-state').hidden = false; el('pipeline-state').textContent = 'Analyzing · 15 fps max';
     el('pipeline-state').classList.add('live'); el('signal-state').textContent = signalKeys.some(key=>el<HTMLSelectElement>(`${key}-source`).value)?'Signal connected':'Connect a filter output'; el('signal-state').classList.add('live'); syncGraph(result.capturedAt);
   };
   worker.onerror = () => { pending = false; stopSource('Image pipeline worker failed.'); };
@@ -235,7 +299,7 @@ function stopSource(message: string) {
   worker?.terminate(); worker = undefined; generation++;
   midi.disarm(message); el('midi-state').textContent = 'MIDI off'; el('midi-state').classList.remove('live');
   el('source-state').textContent = 'Choose a source'; el('source-state').classList.remove('live');
-  el('pipeline-state').textContent = 'Source stopped'; el('pipeline-state').classList.remove('live');
+  el('pipeline-state').textContent = ''; el('pipeline-state').hidden = true; el('pipeline-state').classList.remove('live');
   el('signal-state').textContent = 'Waiting for frames'; el('signal-state').classList.remove('live');
   clearStagePreviews(); processedContext.clearRect(0, 0, processed.width, processed.height);
   el('source-status').textContent = message;
@@ -291,7 +355,7 @@ function availableMeasurements(kind: ImageKind) {
 }
 function legacyControlSignal(recipe:Recipe):ControlSignal{return {id:'scene-energy',name:recipe.name,enabled:true,smoothingMs:recipe.smoothingMs??80,inputs:legacySignalKeys.map((key,index)=>({id:`input-${index+1}`,source:recipe.routes?.[key]??'',weight:recipe.weights[key as keyof Recipe['weights']],calibration:recipe.calibration?.[key]??{min:0,max:(recipe.routes?.[key]??'').endsWith('|blobs')?10:1,invert:false}}))};}
 function showRecipe(recipe: Recipe) {
-  signalHistory=[];drawSignalHistory(performance.now());
+  signalHistory=[];signalValues.clear();drawSignalHistory(performance.now());
   lastValidMeasurements.clear();
   midi.disarm('Recipe changed. Choose the MIDI output and start again to confirm the new mapping.');
   midi.select(undefined); input('midi-output').value = '';
@@ -346,11 +410,23 @@ function validateRecipeImport(value: unknown): Recipe {
   const routes:Record<string,string>={};if(raw.routes&&typeof raw.routes==='object')for(const key of ['brightness','red','motion']){const value=(raw.routes as Record<string,unknown>)[key];if(typeof value==='string'&&value.length<160)routes[key]=value;}
   const controlSignalsRaw=raw.controlSignals;const controlSignals=Array.isArray(controlSignalsRaw)?controlSignalsRaw.map(signal=>validateControlSignal(signal)):undefined;if(controlSignals&&new Set(controlSignals.map(signal=>signal.id)).size!==controlSignals.length)throw new Error('Control Signal IDs must be unique.');
   if(controlSignals)for(const signal of controlSignals)for(const source of signal.inputs.map(item=>item.source).filter(Boolean)){const [stageId,port]=source.split('|'),stage=stages.find(item=>item.id===stageId);if(!stage||!stage.measurements?.includes(port))throw new Error(`Control Signal '${signal.name}' refers to a missing measured output.`);}
-  const signalIds=new Set(['scene-energy',...(controlSignals??[]).map(signal=>signal.id)]);const midiRoutesRaw=raw.midiRoutes;const midiRoutes=Array.isArray(midiRoutesRaw)?midiRoutesRaw.map((route,index)=>{if(!route||typeof route!=='object'||!Number.isInteger((route as any).cc)||(route as any).cc<0||(route as any).cc>119||!Number.isInteger((route as any).channel)||(route as any).channel<1||(route as any).channel>16||!Number.isInteger((route as any).min)||(route as any).min<0||(route as any).min>127||!Number.isInteger((route as any).max)||(route as any).max<0||(route as any).max>127||(route as any).min>(route as any).max||typeof (route as any).enabled!=='boolean'||(route as any).id!==undefined&&!/^[a-zA-Z0-9_-]{1,40}$/.test((route as any).id)||(route as any).name!==undefined&&(typeof (route as any).name!=='string'||!(route as any).name.trim()||(route as any).name.length>80)||(route as any).signalId!==undefined&&!signalIds.has((route as any).signalId))throw new Error(`Invalid MIDI destination ${index+1}.`);return {id:(route as any).id,name:(route as any).name,signalId:(route as any).signalId??'scene-energy',cc:(route as any).cc,channel:(route as any).channel,min:(route as any).min,max:(route as any).max,enabled:(route as any).enabled};}):undefined;if(midiRoutes&&(!midiRoutes.length||midiRoutes.length>64))throw new Error('A project must contain between 1 and 64 MIDI mappings.');
+  const signalIds=new Set(['scene-energy',...(controlSignals??[]).map(signal=>signal.id)]);const midiRoutesRaw=raw.midiRoutes;const midiRoutes=Array.isArray(midiRoutesRaw)?midiRoutesRaw.map((route,index)=>{if(!route||typeof route!=='object'||!Number.isInteger((route as any).cc)||(route as any).cc<0||(route as any).cc>119||!Number.isInteger((route as any).channel)||(route as any).channel<1||(route as any).channel>16||!Number.isInteger((route as any).min)||(route as any).min<0||(route as any).min>127||!Number.isInteger((route as any).max)||(route as any).max<0||(route as any).max>127||(route as any).min>(route as any).max||typeof (route as any).enabled!=='boolean'||(route as any).id!==undefined&&!/^[a-zA-Z0-9_-]{1,40}$/.test((route as any).id)||(route as any).name!==undefined&&(typeof (route as any).name!=='string'||!(route as any).name.trim()||(route as any).name.length>80)||(route as any).signalId!==undefined&&!signalIds.has((route as any).signalId))throw new Error(`Invalid MIDI destination ${index+1}.`);return {id:(route as any).id,name:(route as any).name,signalId:(route as any).signalId??'scene-energy',cc:(route as any).cc,channel:(route as any).channel,min:(route as any).min,max:(route as any).max,enabled:(route as any).enabled};}):undefined;if(midiRoutes&&midiRoutes.length>64)throw new Error('A project can contain at most 64 MIDI mappings.');
   const smoothingMs=raw.smoothingMs??80;if(typeof smoothingMs!=='number'||!Number.isFinite(smoothingMs)||smoothingMs<0||smoothingMs>1000)throw new Error('Invalid smoothing time.');
   const calibration: Record<string, Calibration> = {};
   if(raw.calibration !== undefined) { if(!raw.calibration || typeof raw.calibration !== 'object' || Array.isArray(raw.calibration)) throw new Error('Invalid calibration settings.'); for(const key of ['brightness','red','motion']) { const value=(raw.calibration as Record<string,unknown>)[key];if(value !== undefined)calibration[key]=validateCalibration(value); }}
   return { schemaVersion: 1, calibration, routes, smoothingMs, midiRoutes, controlSignals, id, name: name.trim(), tagline, description, target: targetName, targetColor, image: { stages }, weights: { brightness: Number(weights.brightness), red: Number(weights.red), motion: Number(weights.motion) }, midi: { cc: Number(midiSettings.cc), channel: Number(midiSettings.channel) }, steps: raw.steps as string[] };
+}
+function validateWorkspaceImport(value:unknown, restoreMappingSwitches = false):WorkspaceFile{
+  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Expected a workspace JSON object.');
+  const raw=value as Record<string,unknown>;
+  if(raw.format!=='patchcraft-visual-workspace'||raw.workspaceVersion!==1)throw new Error('Unsupported workspace file. Expected Patchcraft workspace version 1.');
+  const recipe=validateRecipeImport(raw.recipe);
+  if(typeof raw.activeSignalId!=='string'||(raw.activeSignalId!=='scene-energy'&&!(recipe.controlSignals??[]).some(signal=>signal.id===raw.activeSignalId)))throw new Error('Workspace active signal does not exist.');
+  if(!raw.source||typeof raw.source!=='object'||typeof (raw.source as Record<string,unknown>).loop!=='boolean')throw new Error('Workspace source settings are invalid.');
+  const safeRecipe:Recipe={...recipe,midiRoutes:(recipe.midiRoutes??[{cc:recipe.midi.cc,channel:recipe.midi.channel,min:0,max:127,enabled:false}]).map(route=>({...route,enabled:restoreMappingSwitches && route.enabled}))};
+  const name = raw.name ?? recipe.name;
+  if (typeof name !== 'string' || !name.trim() || name.length > 80) throw new Error('Invalid workspace name.');
+  return {name, format:'patchcraft-visual-workspace',workspaceVersion:1,activeSignalId:raw.activeSignalId,source:{loop:(raw.source as {loop:boolean}).loop},recipe:safeRecipe};
 }
 function updatePipeline() {
   requestImageSettingsReset();
@@ -448,40 +524,49 @@ function drawPipeline() {
     for(const [port,label] of Object.entries(outputLabels).filter(([port])=>stage.measurements?.includes(port))){const button=document.createElement('button');button.className='output-port';button.type='button';button.draggable=true;button.dataset.connection=`${stage.id}|${port}`;button.textContent=`● ${label}`;const reading=document.createElement('output');reading.dataset.measurementValue=`${stage.id}|${port}`;reading.className='measurement-value';reading.textContent='-';reading.setAttribute('aria-label',`${label} before weighting and smoothing`);button.append(reading);button.title='Drag this output onto a signal input';button.addEventListener('dragstart',event=>{event.dataTransfer!.setData('text/patchcraft-output',button.dataset.connection!);event.dataTransfer!.effectAllowed='link';});ports.append(button);}
     if(stage.enabled&&stage.measurements?.length){const group=document.createElement('section');group.className='measurement-group';const name=document.createElement('strong');name.textContent=`${index+1}. ${module.label}`;group.append(name,ports);el('measured-outputs').append(group);}
     const type=document.createElement('div');type.className=`image-type${flow.mismatch?' incompatible':''}`;
-    if (!stage.enabled) type.textContent=`Bypassed · sends the incoming ${kindName(flow.inputKind).toLowerCase()} unchanged${stage.measurements?.length?'; measured outputs are off':''}.`;
-    else if (flow.mismatch) type.textContent=`Needs ${kindName(flow.requiredKind!)} · currently receives ${kindName(flow.inputKind).toLowerCase()}.`;
-    else type.textContent=`Image flow · ${kindName(flow.inputKind)} → ${kindName(flow.outputKind)} to next step.`;
-    if(stage.enabled&&stage.measurements?.length){const measured=document.createElement('span');measured.className='measured-note';measured.textContent=`Measured signal${stage.measurements!.length>1?'s':''} · ${stage.measurements!.map(port=>outputLabels[port]).join(', ')}`;type.append(measured);}
+    if (!stage.enabled) type.textContent='Bypassed · input passes through.';
+    else if (flow.mismatch) type.textContent=`Needs ${kindName(flow.requiredKind!)} · gets ${kindName(flow.inputKind)}.`;
+    else type.textContent=`Output · ${kindName(flow.outputKind)}`;
+    if(stage.enabled&&stage.measurements?.length){const measured=document.createElement('span');measured.className='measured-note';measured.textContent=`Measured · ${stage.measurements!.map(port=>outputLabels[port]).join(', ')}`;type.append(measured);}
     card.append(type);container.append(card);
-    if (index < pipelineStages.length - 1) { const arrow = document.createElement('div'); arrow.className = 'stage-arrow'; arrow.textContent = '↓'; container.append(arrow); }
+    if (index < pipelineStages.length - 1) {
+      const connector=document.createElement('div');connector.className='stage-connector';
+      const from=flows[index].outputKind,to=flows[index+1].inputKind;
+      connector.setAttribute('role','img');connector.setAttribute('aria-label',`Image connection from step ${index+1} to step ${index+2}: ${kindName(from)} to ${kindName(to)}`);
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 56 28');svg.setAttribute('aria-hidden','true');
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M28 1 C28 7 43 7 43 14 C43 21 28 21 28 27');
+      const output=document.createElementNS('http://www.w3.org/2000/svg','circle');output.setAttribute('cx','28');output.setAttribute('cy','2');output.setAttribute('r','2.5');
+      const inputPort=document.createElementNS('http://www.w3.org/2000/svg','circle');inputPort.setAttribute('cx','28');inputPort.setAttribute('cy','26');inputPort.setAttribute('r','2.5');
+      svg.append(path,output,inputPort);connector.append(svg);container.append(connector);
+    }
   });
   refreshSignalSources();
   requestAnimationFrame(drawWires);
   el('module-count').textContent = `${pipelineStages.length} STAGES`;
 }
-const outputLabels:Record<string,string>={meanR:'Mean R',meanG:'Mean G',meanB:'Mean B',motion:'Frame difference',mean:'Mean luminance',coverage:'Mask area',x:'Mask center X',y:'Mask center Y',valid:'Region detected',largest:'Largest region area',largestX:'Largest region X',largestY:'Largest region Y',blobs:'Region count (clamped to 1 for CC)'};
+const outputLabels:Record<string,string>={meanR:'R mean',meanG:'G mean',meanB:'B mean',motion:'Frame motion',mean:'Luma mean',coverage:'Mask area',x:'Center X',y:'Center Y',valid:'Region found',largest:'Largest area',largestX:'Largest X',largestY:'Largest Y',blobs:'Blob count'};
 function measurementValue(selection:string,signalId=activeSignalId){if(!selection)return 0;const [id,port]=selection.split('|'),cacheKey=`${signalId}:${selection}`;const index=pipelineStages.findIndex(stage=>stage.id===id),values=stageSignals[index]?.values;if(!values)return 0;const invalid=(['x','y'].includes(port)&&!values.positionValid)||(['largestX','largestY'].includes(port)&&!values.largestValid);if(invalid){const previous=lastValidMeasurements.get(cacheKey);return previous&&latestAt-previous.at<=500?previous.value:0;}const value=values[port as keyof typeof values] as number;if(Number.isFinite(value))lastValidMeasurements.set(cacheKey,{value,at:latestAt});return Number.isFinite(value)?value:0;}
 function rawValue(key:string){return measurementValue(el<HTMLSelectElement>(`${key}-source`).value,activeSignalId);}
 function calibrationFor(key:string): Calibration { return calibrations[key] ?? { min:0, max:el<HTMLSelectElement>(`${key}-source`).value.endsWith('|blobs')?10:1, invert:false }; }
 function routedValue(key:string){return el<HTMLSelectElement>(`${key}-source`).value ? calibrate(rawValue(key),calibrationFor(key)) : 0;}
 function refreshCalibration(key:string){const c=calibrationFor(key);input(`${key}-cal-min`).value=String(c.min);input(`${key}-cal-max`).value=String(c.max);input(`${key}-cal-invert`).checked=c.invert;}
 function effectiveWeight(key:string){if(!el<HTMLSelectElement>(`${key}-source`).value)return 0;return Number(input(`${key}-weight`).value);}
-function measurementOptions(){return pipelineStages.flatMap((stage,index)=>Object.entries(outputLabels).filter(([port])=>stage.enabled&&stage.measurements?.includes(port)).map(([port,label])=>new Option(`${index+1}. ${imageModules.get(stage.module,stage.version).label} → ${label}`,`${stage.id}|${port}`)));}
+function measurementOptions(){return pipelineStages.flatMap((stage,index)=>Object.entries(outputLabels).filter(([port])=>stage.enabled&&stage.measurements?.includes(port)).map(([port,label])=>new Option(`${index+1} · ${label}`,`${stage.id}|${port}`)));}
 function signalOptions(){return controlSignals.map(signal=>[signal.id,signal.name] as [string,string]);}
 function refreshMappingSignalOptions(){for(const row of document.querySelectorAll<HTMLElement>('.cc-route')){const select=row.querySelector<HTMLSelectElement>('.route-signal')!,value=select.value;select.replaceChildren(...signalOptions().map(([id,name])=>new Option(name,id)));select.value=signalOptions().some(([id])=>id===value)?value:'scene-energy';}}
 function renderNamedSignals(){const host=el('named-signal-tabs');host.replaceChildren();for(const signal of controlSignals){const button=document.createElement('button');button.type='button';button.className=`named-signal-tab${signal.enabled?'':' muted'}`;button.dataset.signalId=signal.id;button.dataset.signalOutput=signal.id;button.draggable=true;button.setAttribute('role','tab');button.setAttribute('aria-selected',String(signal.id===activeSignalId));button.setAttribute('aria-label',`${signal.name}${signal.enabled?'':' (muted)'}; use the pencil icon to rename`);const dot=document.createElement('span');dot.className='signal-enabled-dot';dot.setAttribute('aria-hidden','true');const title=document.createElement('span');title.className='named-signal-title';title.textContent=signal.name;const rename=document.createElement('span');rename.className='rename-signal';rename.textContent='✎';rename.setAttribute('aria-hidden','true');const value=document.createElement('output');value.className='named-signal-tab-value';value.textContent=String(Math.round((signalValues.get(signal.id)??0)*127));button.append(dot,title,rename,value);button.addEventListener('click',event=>{if((event.target as HTMLElement).closest('.rename-signal')){event.preventDefault();event.stopPropagation();editSignalTab(signal.id,button,title);return;}activateSignal(signal.id);});button.addEventListener('dblclick',event=>{event.preventDefault();editSignalTab(signal.id,button,title);});button.addEventListener('dragstart',event=>{event.dataTransfer?.setData('text/patchcraft-signal',signal.id);if(event.dataTransfer)event.dataTransfer.effectAllowed='link';});host.append(button);}refreshMappingSignalOptions();updateSignalControlState();}
 function editSignalTab(id:string,tab:HTMLButtonElement,title:HTMLElement){const signal=signalById(id);if(!signal||tab.querySelector('input'))return;const editor=document.createElement('input');editor.className='signal-tab-editor';editor.value=signal.name;editor.maxLength=80;editor.setAttribute('aria-label','Rename signal');title.replaceWith(editor);editor.focus();editor.select();let done=false;const finish=(save:boolean)=>{if(done)return;done=true;if(save){signal.name=editor.value.trim()||'Untitled signal';input('active-signal-name').value=signal.name;syncActiveSignalFromUI();}else renderNamedSignals();};editor.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();finish(true);}if(event.key==='Escape'){event.preventDefault();finish(false);}});editor.addEventListener('blur',()=>finish(true));}
 function signalById(id=activeSignalId){return controlSignals.find(signal=>signal.id===id);}
 function activateSignal(id:string){if(activeSignalId)syncActiveSignalFromUI();const signal=signalById(id);if(!signal)return;activeSignalId=id;for(const [index,key] of signalKeys.entries()){const item=signal.inputs[index]??{id:`input-${index+1}`,source:'',weight:0,calibration:{min:0,max:1,invert:false}};el<HTMLSelectElement>(`${key}-source`).value=item.source;input(`${key}-weight`).value=String(item.weight);calibrations[key]=item.calibration;refreshCalibration(key);}input('response-smoothing').value=String(signal.smoothingMs);el('smoothing-label').textContent=`${signal.smoothingMs} ms`;input('active-signal-name').value=signal.name;el('signal-name').textContent=signal.name;for(const key of signalKeys)el(`${key}-weight-label`).textContent=`${Math.round(Number(input(`${key}-weight`).value)*100)}%`;revealConnectedInputs();updateSignalControlState();for(const tab of document.querySelectorAll<HTMLButtonElement>('.named-signal-tab'))tab.setAttribute('aria-selected',String(tab.dataset.signalId===id));makeGraph();graph.reset();drawWires();}
-function updateSignalControlState(){const signal=signalById();if(!signal)return;input('active-signal-enabled').checked=signal.enabled;el('signal-name').textContent=signal.name;el('active-signal-enabled').setAttribute('aria-label',signal.enabled?'Disable signal':'Enable signal');el('active-signal-enabled').closest('label')!.title=signal.enabled?'Signal enabled · click to mute':'Signal muted · click to enable';el('active-signal-enabled').closest('label')!.querySelector('.signal-enable-label')!.textContent=signal.enabled?'Enabled':'Muted';el<HTMLButtonElement>('remove-active-signal').disabled=signal.id==='scene-energy'||controlSignals.length<=1;const status=el('signal-state');status.textContent=signal.enabled?'Signal enabled':'Signal muted';status.classList.toggle('live',signal.enabled);for(const tab of document.querySelectorAll<HTMLElement>('.named-signal-tab')){const current=signalById(tab.dataset.signalId);tab.classList.toggle('muted',Boolean(current&&!current.enabled));if(current)tab.setAttribute('aria-label',`${current.name}${current.enabled?'':' (muted)'}; use the pencil icon to rename`);}}
+function updateSignalControlState(){const signal=signalById();if(!signal)return;input('active-signal-enabled').checked=signal.enabled;el('signal-name').textContent=signal.name;el('active-signal-enabled').setAttribute('aria-label',signal.enabled?'Disable signal':'Enable signal');el('active-signal-enabled').closest('label')!.title=signal.enabled?'Signal enabled · click to mute':'Signal muted · click to enable';el('active-signal-enabled').closest('label')!.querySelector('.signal-enable-label')!.textContent=signal.enabled?'Enabled':'Muted';const remove=el<HTMLButtonElement>('remove-active-signal');remove.disabled=signal.id==='scene-energy'||controlSignals.length<=1;remove.title=remove.disabled?'The primary signal cannot be removed':'Remove active named signal';const status=el('signal-state');status.textContent=signal.enabled?'Signal enabled':'Signal muted';status.classList.toggle('live',signal.enabled);for(const tab of document.querySelectorAll<HTMLElement>('.named-signal-tab')){const current=signalById(tab.dataset.signalId);tab.classList.toggle('muted',Boolean(current&&!current.enabled));if(current)tab.setAttribute('aria-label',`${current.name}${current.enabled?'':' (muted)'}; use the pencil icon to rename`);}}
 function syncActiveSignalFromUI(){const signal=signalById();if(!signal)return;signal.name=input('active-signal-name').value.trim()||'Untitled signal';signal.enabled=input('active-signal-enabled').checked;signal.smoothingMs=Number(input('response-smoothing').value);signal.inputs=signalKeys.map((key,index)=>({id:signal.inputs[index]?.id??`input-${index+1}`,source:el<HTMLSelectElement>(`${key}-source`).value,weight:Number(input(`${key}-weight`).value),calibration:calibrationFor(key)}));signalStates.delete(signal.id);renderNamedSignals();}
 
 function refreshSignalSources(){const options=measurementOptions();for(const key of signalKeys){const select=el<HTMLSelectElement>(`${key}-source`),previous=select.value;select.replaceChildren(new Option('Not connected',''),...options.map(option=>option.cloneNode(true) as HTMLOptionElement));if([...select.options].some(o=>o.value===previous))select.value=previous;}if(typeof document!=='undefined'&&document.getElementById('named-signal-tabs'))renderNamedSignals();}
 const mappingTemplate=el<HTMLElement>('cc-routes').firstElementChild!.cloneNode(true) as HTMLElement;
-function renderMappings(mappings: NonNullable<Recipe['midiRoutes']>){const host=el('cc-routes');host.replaceChildren();if(!mappings.length)mappings=[{cc:74,channel:1,min:0,max:127,enabled:true}];mappings.forEach(mapping=>{const row=mappingTemplate.cloneNode(true) as HTMLElement;row.dataset.routeId=mapping.id??crypto.randomUUID();row.querySelector<HTMLInputElement>('.route-enabled')!.checked=mapping.enabled;row.querySelector<HTMLInputElement>('.route-cc')!.value=String(mapping.cc);row.querySelector<HTMLInputElement>('.route-channel')!.value=String(mapping.channel);row.querySelector<HTMLButtonElement>('.remove-cc-route')!.disabled=false;const select=row.querySelector<HTMLSelectElement>('.route-signal')!;select.replaceChildren(...signalOptions().map(([id,name])=>new Option(name,id)));select.value=mapping.signalId??'scene-energy';host.append(row);});const rows=[...host.querySelectorAll<HTMLElement>('.cc-route')];if(!rows.some(row=>row.dataset.routeId===focusedRouteId))focusedRouteId=rows[0]?.dataset.routeId??'';rows.forEach(row=>row.classList.toggle('focused',row.dataset.routeId===focusedRouteId));const first=host.querySelector<HTMLButtonElement>('.remove-cc-route');if(first)first.disabled=true;updateMappingCount();drawSignalMappingWires();}
+function renderMappings(mappings: NonNullable<Recipe['midiRoutes']>){const host=el('cc-routes');host.replaceChildren();mappings.forEach(mapping=>{const row=mappingTemplate.cloneNode(true) as HTMLElement;row.dataset.routeId=mapping.id??crypto.randomUUID();row.querySelector<HTMLInputElement>('.route-enabled')!.checked=mapping.enabled;row.querySelector<HTMLInputElement>('.route-cc')!.value=String(mapping.cc);row.querySelector<HTMLInputElement>('.route-channel')!.value=String(mapping.channel);row.querySelector<HTMLButtonElement>('.remove-cc-route')!.disabled=false;const select=row.querySelector<HTMLSelectElement>('.route-signal')!;select.replaceChildren(...signalOptions().map(([id,name])=>new Option(name,id)));select.value=mapping.signalId??'scene-energy';host.append(row);});if(!mappings.length){const empty=document.createElement('p');empty.className='empty-mappings';empty.textContent='No mappings yet. Add a signal to send MIDI CC.';host.append(empty);}const rows=[...host.querySelectorAll<HTMLElement>('.cc-route')];if(!rows.some(row=>row.dataset.routeId===focusedRouteId))focusedRouteId=rows[0]?.dataset.routeId??'';rows.forEach(row=>row.classList.toggle('focused',row.dataset.routeId===focusedRouteId));updateMappingCount();updateMappingLiveValues();drawSignalMappingWires();}
 function updateMappingCount(){const count=document.querySelectorAll('.cc-route').length;el('mapping-count').textContent=`${count} ${count===1?'mapping':'mappings'}`;}
 const signalMapSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');signalMapSvg.id='signal-mapping-wires';document.querySelector('.layout')!.append(signalMapSvg);
-function drawSignalMappingWires(){const layout=signalMapSvg.parentElement!,base=layout.getBoundingClientRect();signalMapSvg.setAttribute('width',String(layout.clientWidth));signalMapSvg.setAttribute('height',String(layout.scrollHeight));signalMapSvg.replaceChildren();for(const row of document.querySelectorAll<HTMLElement>('.cc-route')){const signalId=row.querySelector<HTMLSelectElement>('.route-signal')?.value,source=signalId?document.querySelector<HTMLElement>(`[data-signal-output="${signalId}"]`):undefined,dest=row.querySelector<HTMLSelectElement>('.route-signal');if(!source||!dest)continue;const a=source.getBoundingClientRect(),b=dest.getBoundingClientRect();const x1=a.right-base.left,y1=a.top+a.height/2-base.top,x2=b.left-base.left,y2=b.top+b.height/2-base.top;const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',`M ${x1} ${y1} C ${x1+70} ${y1}, ${x2-70} ${y2}, ${x2} ${y2}`);path.classList.add('signal-map-wire');if(!row.querySelector<HTMLInputElement>('.route-enabled')!.checked)path.classList.add('muted');signalMapSvg.append(path);}}
+function drawSignalMappingWires(){const layout=signalMapSvg.parentElement!,base=layout.getBoundingClientRect();signalMapSvg.setAttribute('width',String(layout.clientWidth));signalMapSvg.setAttribute('height',String(layout.scrollHeight));signalMapSvg.replaceChildren();const addFlow=(d:string,className:string)=>{const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);path.classList.add('signal-map-wire',className);signalMapSvg.append(path);};const source=document.querySelector<HTMLElement>('.source-panel'),pipeline=document.querySelector<HTMLElement>('.pipeline-panel'),signalPanel=document.querySelector<HTMLElement>('.signal-panel');if(source&&pipeline){const a=source.getBoundingClientRect(),b=pipeline.getBoundingClientRect(),x1=a.left+a.width*.49-base.left,x2=b.left+b.width*.51-base.left,y1=a.bottom-base.top,y2=b.top-base.top;addFlow(`M ${x1} ${y1} C ${x1} ${y1+7}, ${x2} ${y2-7}, ${x2} ${y2}`,'source-flow-wire');}const tabs=[...document.querySelectorAll<HTMLElement>('.named-signal-tab')];if(pipeline&&signalPanel){const a=pipeline.getBoundingClientRect();for(const tab of tabs){const b=tab.getBoundingClientRect(),x2=b.left+b.width/2-base.left,x1=x2-14,y1=a.bottom-base.top,y2=b.top-base.top;addFlow(`M ${x1} ${y1} C ${x1} ${y1+7}, ${x2} ${y2-7}, ${x2} ${y2}`,`signal-flow-wire${tab.classList.contains('muted')?' muted':''}`);}}for(const row of document.querySelectorAll<HTMLElement>('.cc-route')){const signalId=row.querySelector<HTMLSelectElement>('.route-signal')?.value,output=signalId?document.querySelector<HTMLElement>(`[data-signal-output="${signalId}"]`):undefined,dest=row.querySelector<HTMLSelectElement>('.route-signal');if(!output||!dest)continue;const a=output.getBoundingClientRect(),b=dest.getBoundingClientRect();const x1=a.right-base.left,y1=a.top+a.height/2-base.top,x2=b.left-base.left,y2=b.top+b.height/2-base.top;const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',`M ${x1} ${y1} C ${x1+70} ${y1}, ${x2-70} ${y2}, ${x2} ${y2}`);path.classList.add('signal-map-wire');if(!row.querySelector<HTMLInputElement>('.route-enabled')!.checked)path.classList.add('muted');signalMapSvg.append(path);}}
 function hexTarget(hex: string): [number, number, number] { return [1,3,5].map(index => parseInt(hex.slice(index,index+2),16)/255) as [number,number,number]; }
 
 const legacySignalKeys=['brightness','red','motion'];
@@ -490,11 +575,13 @@ let selectedWire: string | undefined;
 const workspace = document.createElement('div'); workspace.className = 'connection-workspace';
 const rack = document.querySelector<HTMLElement>('.output-rack')!; rack.before(workspace); workspace.append(rack);
 const connectionToolbar = document.createElement('div'); connectionToolbar.className = 'connection-toolbar';
-connectionToolbar.innerHTML = '<strong>Inputs</strong><label class="active-signal-enabled" title="Signal enabled · click to mute"><input id="active-signal-enabled" type="checkbox" checked><span class="signal-enable-track"></span><span class="signal-enable-label">Enabled</span></label><button id="add-signal-input" type="button" aria-label="Add signal input"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span>Add input</span></button><button id="remove-active-signal" type="button">Remove</button><button id="remove-wire" type="button" hidden>Remove connection</button>';
+connectionToolbar.innerHTML = '<strong>Inputs</strong><label class="active-signal-enabled" title="Signal enabled · click to mute"><input id="active-signal-enabled" type="checkbox" checked><span class="signal-enable-track"></span><span class="signal-enable-label">Enabled</span></label><button id="add-signal-input" type="button" aria-label="Add signal input"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span>Add input</span></button><button id="remove-wire" type="button" hidden>Remove connection</button>';
 workspace.prepend(connectionToolbar);
 const inputColumn = document.createElement('div'); inputColumn.className = 'connection-inputs';
 const signalTabsBar = document.createElement('div'); signalTabsBar.className = 'named-signal-bar'; workspace.before(signalTabsBar);
-signalTabsBar.innerHTML = '<div class="signal-tab-head"><div><strong>Named signals</strong><span>Each tab owns its own inputs and response.</span></div><button id="add-control-signal" type="button" aria-label="Add named signal" title="Add named signal"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button></div><div id="named-signal-tabs" role="tablist" aria-label="Named control signals"></div>';
+signalTabsBar.innerHTML = '<div class="signal-tab-head"><div><strong>Named signals</strong><span>Each tab owns its own inputs and response.</span></div><div class="signal-tab-actions"><button id="add-control-signal" type="button" aria-label="Add named signal" title="Add named signal"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button><button id="remove-active-signal" type="button" aria-label="Remove active named signal" title="Remove active named signal"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12"/></svg></button></div></div><div id="named-signal-tabs" role="tablist" aria-label="Named control signals"></div>';
+new MutationObserver(()=>drawSignalMappingWires()).observe(el('named-signal-tabs'),{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','aria-selected']});
+el('named-signal-tabs').addEventListener('scroll',drawSignalMappingWires,{passive:true});
 inputColumn.innerHTML = '<input id="active-signal-name" type="hidden" value="Scene Energy"><p id="input-limit" class="hint"></p><div id="signal-inputs"></div>';
 workspace.append(inputColumn);
 const wires = document.createElementNS('http://www.w3.org/2000/svg','svg'); wires.id = 'signal-wires'; workspace.append(wires);
@@ -542,7 +629,7 @@ function drawWires() {
     hit.addEventListener('click',choose);hit.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ') {event.preventDefault();choose();}else if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();disconnectInput(key);}});svg.append(hit);
   }
 }
-new ResizeObserver(()=>{drawWires();drawSignalMappingWires();}).observe(document.querySelector('.layout')!);window.addEventListener('resize',()=>{drawWires();drawSignalMappingWires();});
+new ResizeObserver(()=>{drawWires();drawSignalMappingWires();drawSignalHistory(performance.now());}).observe(document.querySelector('.layout')!);window.addEventListener('resize',()=>{drawWires();drawSignalMappingWires();drawSignalHistory(performance.now());});
 const recipeSelect = el<HTMLSelectElement>('recipe-select');
 const simpleIds = ['color-focus','motion-pulse','light-sweep','scene-energy'];
 const simpleGroup = document.createElement('optgroup'); simpleGroup.label = 'Simple recipes';
@@ -563,47 +650,204 @@ for (const key of ['response-curve','response-smoothing']) input(key).addEventLi
   if (latest) syncGraph(performance.now());
 });
 input('target-color').addEventListener('input', () => { target = hexTarget(input('target-color').value); requestImageSettingsReset(); });
+function blankPatch(): Recipe {
+  return {
+    schemaVersion: 1, id: 'untitled-patch', name: 'Untitled patch', tagline: '', description: '',
+    image: { stages: [] }, weights: { brightness: 1, red: 0, motion: 0 },
+    midi: { cc: 74, channel: 1 }, target: 'Your instrument parameter', steps: [],
+  };
+}
+
+function applyPatch(patch: Recipe) {
+  showRecipe({ ...patch, midiRoutes: [] });
+  selectPatchOption(patch);
+}
+
 recipeSelect.addEventListener('change', () => {
-  if (recipeSelect.value === '__blank') {
-    showRecipe({ schemaVersion: 1, id: 'untitled-recipe', name: 'Untitled recipe', tagline: 'Build a visual instrument from a blank slate.', description: 'Add image stages, shape the camera signals, then name and download your recipe.', image: { stages: [] }, weights: { brightness: 1, red: 0, motion: 0 }, midi: { cc: 74, channel: 1 }, target: 'Your instrument parameter', steps: [] });
-    el('recipe-steps').replaceChildren();
-    el('recipe-status').textContent = 'Blank canvas ready. Add image stages, adjust the signal and name the recipe when you are happy.';
-    return;
+  const patch = recipeSelect.value === '__blank' ? blankPatch() : recipes.find(item => item.id === recipeSelect.value);
+  if (patch) {
+    applyPatch(patch);
+    el('recipe-status').textContent = `Applied “${patch.name}”. Assign MIDI mappings for this patch below.`;
   }
-  const recipe = recipes.find(item => item.id === recipeSelect.value); if (recipe) { showRecipe(recipe); el('recipe-status').textContent = `Loaded ${recipe.name}.`; }
 });
 input('recipe-name').addEventListener('input', () => {
-  const name = input('recipe-name').value.trim() || 'Untitled recipe';
+  const name = input('recipe-name').value.trim() || 'Untitled patch';
   selectedRecipe.name = name; el('recipe-title').textContent = name;
 });
 input('active-signal-name').addEventListener('input',()=>{syncActiveSignalFromUI();el('signal-name').textContent=signalById()?.name??'';});
 input('active-signal-enabled').addEventListener('change',()=>{const signal=signalById();if(signal){signal.enabled=input('active-signal-enabled').checked;signalStates.delete(signal.id);updateSignalControlState();}});
 el('add-control-signal').addEventListener('click',()=>{const id=`signal-${crypto.randomUUID().slice(0,24)}`,signal:ControlSignal={id,name:`Control ${controlSignals.length+1}`,enabled:true,smoothingMs:80,inputs:signalKeys.map((_,index)=>({id:`input-${index+1}`,source:'',weight:0,calibration:{min:0,max:1,invert:false}}))};controlSignals.push(signal);renderNamedSignals();activateSignal(id);const firstInput=el('brightness-source').closest<HTMLElement>('.signal-input-group')!;firstInput.hidden=false;input('brightness-weight').value='1';el('brightness-weight-label').textContent='100%';syncActiveSignalFromUI();updateInputButton();drawWires();el('named-signal-tabs').lastElementChild?.scrollIntoView({block:'nearest',inline:'end',behavior:'smooth'});});
-el('remove-active-signal').addEventListener('click',()=>{if(activeSignalId==='scene-energy'||controlSignals.length<=1)return;const removed=activeSignalId;controlSignals=controlSignals.filter(signal=>signal.id!==removed);signalStates.delete(removed);const fallback=controlSignals[0];for(const row of document.querySelectorAll<HTMLElement>('.cc-route'))if(row.querySelector<HTMLSelectElement>('.route-signal')!.value===removed)row.querySelector<HTMLSelectElement>('.route-signal')!.value=fallback.id;renderNamedSignals();activateSignal(fallback.id);drawSignalMappingWires();});
-el('load-recipe').addEventListener('click', () => input('recipe-file').click());
-input('recipe-file').addEventListener('change', async () => {
-  const file = input('recipe-file').files?.[0]; if (!file) return;
+el('remove-active-signal').addEventListener('click',()=>{const selected=signalById();if(!selected||selected.id==='scene-energy'||controlSignals.length<=1)return;const fallback=controlSignals.find(signal=>signal.id!==selected.id)!;const linkedRoutes=[...document.querySelectorAll<HTMLElement>('.cc-route')].filter(row=>row.querySelector<HTMLSelectElement>('.route-signal')!.value===selected.id).length;const detail=linkedRoutes?` ${linkedRoutes} MIDI ${linkedRoutes===1?'mapping':'mappings'} will be reassigned to “${fallback.name}”.`:'';if(!window.confirm(`Remove named signal “${selected.name}”?${detail}`))return;const removed=selected.id;controlSignals=controlSignals.filter(signal=>signal.id!==removed);signalStates.delete(removed);for(const row of document.querySelectorAll<HTMLElement>('.cc-route'))if(row.querySelector<HTMLSelectElement>('.route-signal')!.value===removed)row.querySelector<HTMLSelectElement>('.route-signal')!.value=fallback.id;renderNamedSignals();activateSignal(fallback.id);updateMappingLiveValues();drawSignalMappingWires();});
+function snapshotPatch(): Recipe {
+  const name = input('recipe-name').value.trim() || 'Untitled patch';
+  const stages = activeSettings();
+  const { midiRoutes: _routes, ...patch } = selectedRecipe;
+  return {
+    ...patch, name, image: stages, targetColor: input('target-color').value,
+    controlSignals: controlSignals.map(signal => ({
+      ...signal,
+      inputs: signal.inputs.map(item => {
+        const [stageId, port] = item.source.split('|');
+        const connected = stages.stages.some(stage => stage.id === stageId && stage.measurements?.includes(port));
+        return { ...item, source: connected ? item.source : '' };
+      }),
+    })),
+  };
+}
+
+function snapshotWorkspace(): WorkspaceFile {
+  const midiRoutes = [...document.querySelectorAll<HTMLElement>('.cc-route')].map(row => ({
+    id: row.dataset.routeId,
+    signalId: row.querySelector<HTMLSelectElement>('.route-signal')!.value,
+    cc: row.querySelector<HTMLInputElement>('.route-cc')!.valueAsNumber,
+    channel: row.querySelector<HTMLInputElement>('.route-channel')!.valueAsNumber,
+    min: 0, max: 127,
+    enabled: row.querySelector<HTMLInputElement>('.route-enabled')!.checked,
+  }));
+  return {
+    format: 'patchcraft-visual-workspace', workspaceVersion: 1,
+    name: input('workspace-name').value.trim() || 'Untitled workspace',
+    activeSignalId, source: { loop: input('video-loop').checked },
+    recipe: { ...snapshotPatch(), midiRoutes },
+  };
+}
+
+function selectPatchOption(patch: Recipe) {
+  recipeSelect.querySelector('[data-current-patch]')?.remove();
+  if (recipes.some(item => item.id === patch.id && item.name === patch.name)) {
+    recipeSelect.value = patch.id;
+    return;
+  }
+  const option = new Option(patch.name, '__current');
+  option.dataset.currentPatch = '';
+  option.disabled = true;
+  recipeSelect.add(option);
+  recipeSelect.value = option.value;
+}
+
+function applyWorkspace(workspace: WorkspaceFile) {
+  finishWorkspaceNameEdit(false);
+  showRecipe(workspace.recipe);
+  selectPatchOption(workspace.recipe);
+  input('workspace-name').value = workspace.name;
+  input('video-loop').checked = workspace.source.loop;
+  if (!stream) preview.loop = workspace.source.loop;
+  activateSignal(workspace.activeSignalId);
+}
+
+let workspaceNameEditing = false;
+let workspaceNameBeforeEdit = '';
+function finishWorkspaceNameEdit(commit: boolean) {
+  if (!workspaceNameEditing) return;
+  const field = input('workspace-name');
+  field.value = commit ? field.value.trim() || 'Untitled workspace' : workspaceNameBeforeEdit;
+  field.readOnly = true;
+  workspaceNameEditing = false;
+  const button = el<HTMLButtonElement>('edit-workspace-name');
+  button.setAttribute('aria-label', 'Edit workspace name');
+  button.title = 'Edit workspace name';
+  button.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m13.8 3.3 2.9 2.9M4 16l3.3-.7L16 6.6a1.8 1.8 0 0 0-2.6-2.6l-8.7 8.7L4 16Z"/></svg>';
+  if (commit) saveLocalWorkspace();
+}
+el('edit-workspace-name').addEventListener('click', () => {
+  const field = input('workspace-name');
+  const button = el<HTMLButtonElement>('edit-workspace-name');
+  if (!workspaceNameEditing) {
+    workspaceNameBeforeEdit = field.value;
+    workspaceNameEditing = true;
+    field.readOnly = false;
+    button.setAttribute('aria-label', 'Save workspace name');
+    button.title = 'Save workspace name';
+    button.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-8"/></svg>';
+    field.focus();
+    field.select();
+    return;
+  }
+  finishWorkspaceNameEdit(true);
+});
+input('workspace-name').addEventListener('keydown', event => {
+  if (!workspaceNameEditing) return;
+  const keyboard = event as KeyboardEvent;
+  if (keyboard.key === 'Enter') { keyboard.preventDefault(); el('edit-workspace-name').click(); }
+  if (keyboard.key === 'Escape') { keyboard.preventDefault(); finishWorkspaceNameEdit(false); }
+});
+
+const workspaceStorageKey = 'patchcraft:last-visual-workspace';
+let lastSavedWorkspace: string | undefined;
+function saveLocalWorkspace() {
   try {
-    if (file.size > 1_000_000) throw new Error('Recipe files must be smaller than 1 MB.');
-    const parsed = validateRecipeImport(JSON.parse(await file.text()));
-    showRecipe(parsed);
-    recipeSelect.replaceChildren(new Option('＋ Blank canvas · start fresh', '__blank'), ...recipes.filter(recipe => recipe.id !== parsed.id).map(recipe => new Option(recipe.name, recipe.id)), new Option(parsed.name, parsed.id));
-    recipeSelect.value = parsed.id;
-    el('recipe-status').textContent = `Loaded “${parsed.name}”. MIDI is stopped; select an output and start it again to send.`;
-  } catch (error) {
-    el('recipe-status').textContent = error instanceof Error ? `Could not load recipe: ${error.message}` : 'Could not load this recipe JSON.';
-  } finally { input('recipe-file').value = ''; }
-});
+    const workspace = snapshotWorkspace();
+    const json = JSON.stringify(workspace);
+    if (lastSavedWorkspace === json) return;
+    validateWorkspaceImport(workspace, true);
+    localStorage.setItem(workspaceStorageKey, json);
+    lastSavedWorkspace = json;
+    el('workspace-status').textContent = 'Saved in this browser';
+  } catch {
+    el('workspace-status').textContent = 'Changes could not be saved locally';
+  }
+}
+
+function downloadJson(data: unknown, name: string, kind: 'patch' | 'workspace') {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'untitled';
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `patchcraft-${kind}-${slug}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+for (const [button, field, kind] of [
+  ['load-recipe', 'recipe-file', 'patch'],
+  ['open-workspace', 'workspace-file', 'workspace'],
+] as const) {
+  el(button).addEventListener('click', () => input(field).click());
+  input(field).addEventListener('change', async () => {
+    const file = input(field).files?.[0];
+    if (!file) return;
+    const status = el(kind === 'patch' ? 'recipe-status' : 'workspace-status');
+    try {
+      if (file.size > 1_000_000) throw new Error('JSON files must be smaller than 1 MB.');
+      const data: unknown = JSON.parse(await file.text());
+      if (kind === 'workspace') {
+        applyWorkspace(validateWorkspaceImport(data));
+      } else {
+        applyPatch(validateRecipeImport(data));
+      }
+      saveLocalWorkspace();
+      status.textContent = kind === 'workspace' ? 'Workspace opened. MIDI output is off.' : 'Patch imported. Assign MIDI mappings below.';
+    } catch (error) {
+      status.textContent = `Could not open ${kind}: ${(error as Error).message}`;
+    } finally {
+      input(field).value = '';
+    }
+  });
+}
+
 el('save-recipe').addEventListener('click', () => {
-  syncActiveSignalFromUI();
-  const name = input('recipe-name').value.trim();
-  if (!name) { el('recipe-status').textContent = 'Enter a recipe name before downloading.'; input('recipe-name').focus(); return; }
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'patchcraft-recipe';
-  const recipe: Recipe = { ...selectedRecipe, controlSignals, calibration: Object.fromEntries(legacySignalKeys.map(key=>[key,calibrationFor(key)])), id: slug, name, routes:Object.fromEntries(legacySignalKeys.map(key=>[key,el<HTMLSelectElement>(`${key}-source`).value])), smoothingMs:Number(input('response-smoothing').value), targetColor: input('target-color').value, image: activeSettings(), weights: { brightness: Number(input('brightness-weight').value), red: Number(input('red-weight').value), motion: Number(input('motion-weight').value) }, midi: { cc: Number(input('midi-cc').value), channel: Number(input('midi-channel').value) }, midiRoutes:[...document.querySelectorAll<HTMLElement>('.cc-route')].map(row=>({id:row.dataset.routeId,signalId:row.querySelector<HTMLSelectElement>('.route-signal')!.value,cc:Number(row.querySelector<HTMLInputElement>('.route-cc')!.value),channel:Number(row.querySelector<HTMLInputElement>('.route-channel')!.value),min:0,max:127,enabled:row.querySelector<HTMLInputElement>('.route-enabled')!.checked})) };
-  const url = URL.createObjectURL(new Blob([JSON.stringify(recipe, null, 2)], { type: 'application/json' }));
-  const link = document.createElement('a'); link.href = url; link.download = `${slug}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-  el('recipe-status').textContent = `Downloaded ${name}.json. Add it to src/recipes/ to include it in the next local build.`;
+  const patch = snapshotPatch();
+  downloadJson(patch, patch.name, 'patch');
 });
+el('save-workspace').addEventListener('click', () => {
+  finishWorkspaceNameEdit(true);
+  const workspace = snapshotWorkspace();
+  try {
+    downloadJson(validateWorkspaceImport(workspace), workspace.name, 'workspace');
+  } catch (error) {
+    el('workspace-status').textContent = `Could not save workspace: ${(error as Error).message}`;
+  }
+});
+el('new-workspace').addEventListener('click', () => {
+  if (!window.confirm('Replace the current workspace with a blank one?')) return;
+  finishWorkspaceNameEdit(true);
+  stopSource('Choose a source for the new workspace.');
+  input('workspace-name').value = 'Untitled workspace';
+  input('video-loop').checked = true;
+  applyPatch(blankPatch());
+  saveLocalWorkspace();
+});
+
 const addFilter = el<HTMLSelectElement>('add-filter');
 addFilter.replaceChildren(...imageModules.list().filter(module => !module.scalarOutputs || module.outputKind).map(module => new Option(module.label, module.id)));
 el('add-filter-button').addEventListener('click', () => {
@@ -640,9 +884,10 @@ preview.addEventListener('play', () => {
 });
 input('midi-output').addEventListener('change', () => { midi.disarm('MIDI output changed; start again to confirm.'); midi.select(undefined); });
 el('add-cc-route').addEventListener('click',()=>{const routes=[...document.querySelectorAll<HTMLElement>('.cc-route')].map(row=>({id:row.dataset.routeId,signalId:row.querySelector<HTMLSelectElement>('.route-signal')!.value,cc:Number(row.querySelector<HTMLInputElement>('.route-cc')!.value),channel:Number(row.querySelector<HTMLInputElement>('.route-channel')!.value),min:0,max:127,enabled:row.querySelector<HTMLInputElement>('.route-enabled')!.checked}));routes.push({id:crypto.randomUUID(),signalId:'scene-energy',cc:74,channel:1,min:0,max:127,enabled:true});focusedRouteId=routes[routes.length-1].id!;renderMappings(routes);});
-el('cc-routes').addEventListener('click',event=>{const target=event.target as HTMLElement,row=target.closest<HTMLElement>('.cc-route');if(!row)return;if(target.matches('.remove-cc-route')&&!target.hasAttribute('disabled')){row.remove();const rows=[...el('cc-routes').querySelectorAll<HTMLElement>('.cc-route')];if(!rows.some(item=>item.dataset.routeId===focusedRouteId))focusedRouteId=rows[0]?.dataset.routeId??'';rows.forEach(item=>item.classList.toggle('focused',item.dataset.routeId===focusedRouteId));const first=el('cc-routes').querySelector<HTMLButtonElement>('.remove-cc-route');if(first)first.disabled=true;updateMappingCount();drawSignalMappingWires();return;}focusedRouteId=row.dataset.routeId!;for(const item of el('cc-routes').querySelectorAll<HTMLElement>('.cc-route'))item.classList.toggle('focused',item===row);});
+el('cc-routes').addEventListener('click',event=>{const target=event.target as HTMLElement,row=target.closest<HTMLElement>('.cc-route');if(!row)return;if(target.matches('.remove-cc-route')&&!target.hasAttribute('disabled')){const signalName=signalById(row.querySelector<HTMLSelectElement>('.route-signal')!.value)?.name??'signal',cc=row.querySelector<HTMLInputElement>('.route-cc')!.value;if(!window.confirm(`Remove ${signalName} → CC ${cc}?`))return;row.remove();const rows=[...el('cc-routes').querySelectorAll<HTMLElement>('.cc-route')];if(!rows.some(item=>item.dataset.routeId===focusedRouteId))focusedRouteId=rows[0]?.dataset.routeId??'';rows.forEach(item=>item.classList.toggle('focused',item.dataset.routeId===focusedRouteId));if(!rows.length){const empty=document.createElement('p');empty.className='empty-mappings';empty.textContent='No mappings yet. Add a signal to send MIDI CC.';el('cc-routes').append(empty);}updateMappingCount();updateMappingLiveValues();drawSignalMappingWires();return;}focusedRouteId=row.dataset.routeId!;for(const item of el('cc-routes').querySelectorAll<HTMLElement>('.cc-route'))item.classList.toggle('focused',item===row);});
 el('cc-routes').addEventListener('keydown',event=>{const key=event as KeyboardEvent,target=key.target as HTMLElement;if(target.matches('.cc-route')&&(key.key==='Enter'||key.key===' ')){key.preventDefault();(target as HTMLElement).click();}});
-el('cc-routes').addEventListener('change',event=>{const target=event.target as HTMLElement;if(target.matches('.route-signal'))drawSignalMappingWires();});
+el('cc-routes').addEventListener('change',event=>{const target=event.target as HTMLElement;if(target.matches('.route-signal'))drawSignalMappingWires();updateMappingLiveValues();});
+el('cc-routes').addEventListener('input',event=>{const target=event.target as HTMLElement;if(target.matches('.route-cc,.route-channel'))updateMappingLiveValues();});
 el('cc-routes').addEventListener('dragover',event=>{if((event as DragEvent).dataTransfer?.types.includes('text/patchcraft-signal'))event.preventDefault();});
 el('cc-routes').addEventListener('drop',event=>{const drag=event as DragEvent,signalId=drag.dataTransfer?.getData('text/patchcraft-signal');if(!signalId)return;const target=drag.target as HTMLElement,row=target.closest<HTMLElement>('.cc-route');if(!row)return;drag.preventDefault();const select=row.querySelector<HTMLSelectElement>('.route-signal')!;select.value=signalId;drawSignalMappingWires();});
 el('isolate-cc').addEventListener('change',()=>drawSignalMappingWires());
@@ -681,5 +926,25 @@ for (const recipe of recipes) {
 }
 recipeSelect.value = recipes[0].id;
 showRecipe(recipes[0]);
+
+try {
+  const saved = localStorage.getItem(workspaceStorageKey);
+  if (saved) {
+    applyWorkspace(validateWorkspaceImport(JSON.parse(saved), true));
+    lastSavedWorkspace = JSON.stringify(snapshotWorkspace());
+    el('workspace-status').textContent = 'Restored from this browser';
+  }
+} catch {
+  el('workspace-status').textContent = 'Previous workspace could not be restored';
+}
+
+let autosaveTimer: ReturnType<typeof setTimeout>;
+for (const event of ['input', 'change', 'click', 'drop', 'focusout', 'keydown']) {
+  document.querySelector('main')!.addEventListener(event, () => {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(saveLocalWorkspace, 250);
+  }, true);
+}
+window.addEventListener('pagehide', saveLocalWorkspace);
 
 mountBuildInfo();

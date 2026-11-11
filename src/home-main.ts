@@ -45,6 +45,6 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <p>Patchcraft runs visual analysis in your browser and sends control data over MIDI. It does not need to process your instrument audio to control your existing gear.</p>
     </section>
   </main>
-  <footer class="site-footer"><a class="footer-brand" href="/">PATCHCRAFT</a><span>Open source by YNY Labs</span><div class="footer-links"><a href="/about.html">About</a><a href="/support.html">Support</a><a href="https://github.com/for-aiur/patchcraft">GitHub</a></div></footer>`;
+  <footer class="site-footer"><a class="footer-brand" href="/">PATCHCRAFT</a><div class="footer-links"><a href="/about.html">About</a><a href="/support.html">Support</a><a href="https://github.com/for-aiur/patchcraft">GitHub</a></div></footer>`;
 
 mountBuildInfo();
