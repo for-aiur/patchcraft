@@ -56,6 +56,8 @@ services:
       retries: 3
   tests:
     environment:
+      PATCHCRAFT_BUILD_SHA: ${PATCHCRAFT_BUILD_SHA:-}
+      PATCHCRAFT_RELEASE_TAG: ${PATCHCRAFT_RELEASE_TAG:-}
       DATABASE_URL: postgres://patchcraft:patchcraft-local@database:5432/patchcraft
     depends_on:
       database:

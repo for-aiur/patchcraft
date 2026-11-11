@@ -1,3 +1,4 @@
+import { startFrameClock } from './frame-clock';
 import type { Features } from './features';
 import type { Patch } from '../control/patch';
 export type CameraSample = { features: Features; capturedAt: number; processingMs: number; generation: number; deliveredAt: number; readbackMs: number };
@@ -15,7 +16,7 @@ export class CameraInput {
   private worker?: Worker;
   private canvas = document.createElement('canvas');
   private frameCallback = 0;
-  private timer?: ReturnType<typeof setInterval>;
+  private stopClock?: () => void;
   private pending = false;
   private previousTime = -1;
   private lastSampleAt = -Infinity;
@@ -30,7 +31,7 @@ export class CameraInput {
     this.stream = stream; this.settings = stream.getVideoTracks()[0].getSettings();
     const track = stream.getVideoTracks()[0];
     track.onended = () => this.stop('Camera disconnected.');
-    track.onmute = () => this.stop('Camera became unavailable.');
+    // Temporary track muting can recover; keep the stream and wait for fresh frames.
     try {
       this.video.srcObject = stream;
       await this.video.play();
@@ -53,21 +54,22 @@ export class CameraInput {
         this.frameCallback = this.video.requestVideoFrameCallback(frame);
       };
       this.frameCallback = this.video.requestVideoFrameCallback(frame);
-      this.timer = setInterval(() => {
+      this.stopClock = startFrameClock(() => {
         const now = performance.now();
         // Some browsers throttle compositor callbacks when the preview is offscreen.
         // Read only a newly delivered video frame; never fabricate freshness from a timer.
-        if (!document.hidden && !this.pending && this.video.currentTime !== this.previousTime &&
+        if (!this.pending && this.video.currentTime !== this.previousTime &&
             now - this.lastSampleAt >= 1000 / this.config.fps - 2) {
           try { this.capture(generation); }
           catch { this.stop('Camera frame readback failed.'); return; }
         }
-        if ((this.lastFrameAt && now - this.lastFrameAt > 1000) || (!this.lastFrameAt && now - this.startedAt > 5000)) this.stop('Camera frames stopped. Restart camera and rearm.');
-      }, 25);
+        // A temporary frame stall must not destroy the camera stream. Output freshness is checked separately.
+      });
     } catch (error) { if (generation === this.generation) this.stop('Camera startup failed.'); throw error; }
   }
   private capture(generation: number) {
     const now = performance.now();
+    if (this.stream?.getVideoTracks().some(track => track.muted || track.readyState === 'ended')) return;
     if (this.pending || now - this.lastSampleAt < 1000 / this.config.fps - 2 || this.video.currentTime === this.previousTime) { this.skipped++; return; }
     this.previousTime = this.video.currentTime;
     this.lastSampleAt = now;
@@ -85,7 +87,7 @@ export class CameraInput {
     ++this.generation;
     if (this.stream) this.endedAt = performance.now();
     if (this.frameCallback) this.video.cancelVideoFrameCallback(this.frameCallback);
-    clearInterval(this.timer); this.timer = undefined;
+    this.stopClock?.(); this.stopClock = undefined;
     this.worker?.terminate(); this.worker = undefined; this.pending = false;
     this.stream?.getTracks().forEach(t => { t.onended = null; t.onmute = null; t.stop(); });
     this.stream = undefined; this.video.srcObject = null;

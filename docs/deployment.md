@@ -50,3 +50,16 @@ are required locally. Local checks remain `docker compose run --rm tests`.
 
 References: [Cloudflare Direct Upload CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/),
 [official Wrangler action](https://github.com/cloudflare/wrangler-action).
+
+## Visible build version
+
+All three pages show a compact version badge in the footer. `package.json` is the
+version source. Main builds are labeled `v<version> · dev`, followed by a short
+commit link; CI passes the full commit SHA into the Compose build.
+The same metadata is published as `/build-info.json`.
+
+Publishing a GitHub release runs the same checks and deploys the tested release
+artifact to production. The release tag must match `package.json` as
+`v<version>`; the visible badge then links to that exact GitHub release. Create
+the release from its matching source commit. Main branch builds remain labeled
+as development builds.

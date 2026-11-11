@@ -2,11 +2,13 @@
 
 <p align="center">
   <strong>Let your surroundings play.</strong><br>
-  Turn live camera signals into expressive controls for the music gear you already use.
+  Turn changes in light, color, and motion into MIDI controls for the music gear you already use.
 </p>
 
 <p align="center">
-  <a href="https://patchcraft-m1.pages.dev/vision"><strong>Open the live demo →</strong></a>
+  <a href="https://patchcraft-m1.pages.dev/visual-lab"><strong>Open Visual Signal Lab →</strong></a>
+  ·
+  <a href="https://patchcraft-m1.pages.dev/vision">Try the simple camera-to-MIDI demo</a>
 </p>
 
 <p align="center">
@@ -14,68 +16,80 @@
   <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/License-Apache--2.0-blue.svg"></a>
 </p>
 
-Patchcraft explores a simple idea: a change in light, color, or motion can shape
-the sound of a performance. Its camera-to-MIDI prototype reads visual signals in
-your browser and sends MIDI controls to a mapped effect in your DAW. Your guitar
-can stay in its usual signal chain.
+Patchcraft reads a camera or video in your browser, turns visual changes into
+control signals, and sends those signals as MIDI CC messages to music software.
+Your instrument audio stays in its usual signal path.
 
-## Current stage
+## What you can do
 
-Patchcraft is in an early open testing phase. The live prototype supports a
-basic camera signal → MIDI control mapping for a MIDI-capable DAW and mapped
-effect parameter. We are gathering hands-on feedback about setup, reliability
-and how the visual controls feel while playing, then using it to shape the next
-iteration. Real equipment compatibility and physical response latency are still
-being evaluated; the demo reports software timings only, not measured end-to-end
-latency.
+- Use a live camera, a built-in simulator, or a looping local video.
+- Build visual processing pipelines with color, grayscale, blur, threshold,
+  morphology, motion, and region measurements. Preview each step as it runs.
+- Combine up to eight measurements into a named control signal with weights,
+  calibration, and smoothing.
+- Map signals to MIDI CC numbers and channels, then assign them to parameters in
+  a DAW or plugin using its MIDI Learn feature.
+- Save and share recipes as JSON files.
 
-## Where we're headed
+The included recipes range from simple light and motion controls to edge
+texture, foreground masks, and color-position controls. Image processing runs
+in the browser; camera frames and local video files are not uploaded by the
+static demo.
 
-- Reliable live audio and camera-to-MIDI control
-- Flexible patches that connect multiple signals, processors and effect controls
-- Conversational patch creation, followed by sharing and remixing
+## Try it
 
-We are validating the live musician workflow now. These directions will grow
-from feedback and tested hardware support.
+1. Open [Visual Signal Lab](https://patchcraft-m1.pages.dev/visual-lab) and pick
+   a recipe or start with an empty one.
+2. Choose a camera or local video and adjust the processing steps and signal.
+3. Select a MIDI output, CC, and channel. In your DAW or plugin, use MIDI Learn
+   to assign that control to a parameter.
 
-## Run locally
+The browser and receiving music app must be able to access the same MIDI port.
+Some operating systems require a virtual MIDI port to connect them.
 
-Install Docker with Compose, then run:
+Patchcraft is an early open-source prototype. Device and browser support varies;
+the displayed processing timings are not physical camera-to-instrument latency
+measurements.
+
+## Developers
+
+### Start the app
+
+Install Docker with Compose. No host-installed Node.js, Python, or database is
+needed.
 
 ```sh
 docker compose up --build
 ```
 
-Open [http://localhost:5173/vision](http://localhost:5173/vision) in a supported
-browser and allow camera access when prompted. The browser accesses your camera
-and MIDI devices; Docker only serves the app. No cloud account or host-installed
-Node.js is required.
+Open the app:
 
-The default startup runs only the browser app. Database and Gemini authoring services are optional and use the `authoring` profile; the Compose test command starts the test dependencies when needed.
+- [Visual Signal Lab](http://localhost:5173/visual-lab.html)
+- [Camera-to-MIDI demo](http://localhost:5173/vision)
 
-For local visual-signal checks, open `http://localhost:5173/visual-lab.html` after the app starts. Choose one of the included recipes, select a local video file (it stays in the browser) or use the camera, add/reorder image-processing stages, and adjust the weighted signal. The page can send its output over Web MIDI to LoopBe or another MIDI port for receiver-side MIDI Learn. Use the displayed processing timings for development checks only; they are not hardware performance claims.
+The browser accesses cameras and MIDI devices directly; Docker serves the app.
+The standard local setup needs no cloud account or API key.
 
-The Visual Lab keeps Color Focus, Motion Pulse, Light Sweep and Scene Energy in the Simple recipes group. Explore adds Texture Drive (Sobel edges), Shadow Gate (Otsu), Local Pattern (adaptive threshold), Moving Foreground (background subtraction), Motion Area (changed-pixel mask) and Color Position (largest red-region X). Open Recipe guide for setup, MIDI target and limitations. Temporal masks require a fixed camera and are affected by lighting changes; Color Position selects the largest region rather than tracking an object's identity.
-
-Recipes are discovered from `src/recipes/*.json` at dev/build time. Download an edited recipe as JSON, put the reviewed file in that directory with a unique ID, then restart/rebuild. Source-control changes follow the normal authorized commit workflow. Each image step can declare selected `measurements`; `routes` connect `stage-id|measurement` to mixer inputs. Calibration and smoothing settings travel with the recipe. No database is required.
-
-Run the automated checks:
+### Run checks
 
 ```sh
 docker compose run --rm tests
 ```
 
-## CI and hosting
+### Project layout
 
-GitHub Actions runs the Docker-based build, type checks and automated tests on
-pushes and pull requests. The public demo is hosted on Cloudflare Pages and is
-automatically updated after a successful `main` test run once deployment secrets
-are configured. See [deployment setup and rollback](docs/deployment.md).
+- `src/vision/` — camera input and visual processing
+- `src/control/` — control signal and mapping logic
+- `src/midi/` — MIDI output
+- `src/recipes/` — built-in visual recipes
+- `tests/` — automated checks
 
-- [Live demo](https://patchcraft-m1.pages.dev/vision)
-- [CI runs](https://github.com/for-aiur/patchcraft/actions/workflows/checks.yml)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow.
 
-## Contributing
+## About and support
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidance and [SECURITY.md](SECURITY.md)
-to report a vulnerability. Patchcraft is licensed under [Apache 2.0](LICENSE).
+Patchcraft is an open-source project by YNY Labs. Read the [contribution
+guide](CONTRIBUTING.md), report a problem through [GitHub
+Issues](https://github.com/for-aiur/patchcraft/issues), or browse the
+[source code](https://github.com/for-aiur/patchcraft). The project is licensed
+under [Apache 2.0](LICENSE).

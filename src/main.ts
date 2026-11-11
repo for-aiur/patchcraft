@@ -1,3 +1,4 @@
+import { mountBuildInfo } from './build-info';
 import './style.css';
 import { AudioEngine } from './audio/engine';
 
@@ -250,3 +251,5 @@ if (!window.isSecureContext || typeof AudioContext === 'undefined' || !navigator
   start.disabled = true; devicesButton.disabled = true;
   status('This test needs HTTPS or localhost and a browser supporting Web Audio / AudioWorklet.', true);
 }
+
+mountBuildInfo();
