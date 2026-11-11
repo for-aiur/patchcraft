@@ -56,7 +56,7 @@ test('every recipe processes live frames and produces finite raw and calibrated 
     await expect(page.locator('.stage-preview.has-frame')).toHaveCount(count, { timeout: 15_000 });
     await expect(page.locator('#pipeline-state')).toContainText('Analyzing');
     await expect(page.locator('#signal-state')).toContainText('Signal connected');
-    await expect(page.locator('[data-measurement-value]').first()).not.toHaveText('—');
+    await expect(page.locator('[data-measurement-value]').first()).not.toHaveText('-');
     const value = Number(await page.locator('#control-knob').getAttribute('aria-valuenow'));
     expect(Number.isFinite(value), id).toBeTruthy();
     expect(value).toBeGreaterThanOrEqual(0); expect(value).toBeLessThanOrEqual(127);

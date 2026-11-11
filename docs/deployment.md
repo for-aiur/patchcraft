@@ -2,14 +2,20 @@
 
 The `Checks` workflow runs the Docker Compose test suite on pushes and pull requests.
 After a successful `main` run, it uploads the exact static files produced inside
-the test container to the existing Cloudflare Pages project `patchcraft-m1`.
-Pull requests and other branches do not deploy. The optional authoring API,
+the test container to the Cloudflare Pages project `patchcraft`. The YNY-19
+feature branch also publishes a tested preview at its branch alias. Pull
+requests and other branches do not deploy. The optional authoring API,
 Gemini credentials and database are not included in the static deployment.
+
+The workflow expects a Pages project whose slug is `patchcraft`. Cloudflare does
+not allow changing a `pages.dev` subdomain. The first YNY-19 preview creates the
+new project, then the main deployment publishes the production site. Keep the
+previous project until the new deployment is verified.
 
 ## One-time configuration
 
 In Cloudflare, create an API token with **Account → Cloudflare Pages → Edit**,
-limited to the account containing `patchcraft-m1`. Use a dedicated deployment
+limited to the account containing `patchcraft`. Use a dedicated deployment
 token rather than a personal Wrangler OAuth session or Global API Key.
 
 In GitHub, open repository **Settings → Secrets and variables → Actions** and add:
@@ -36,11 +42,11 @@ selecting `main`. All checks still run. If a secret was missing, add it and reru
 the failed deploy job while the build artifact is available (seven days), or run
 the workflow again on `main`.
 
-Public URL: https://patchcraft-m1.pages.dev/visual-lab
+Public URL: https://patchcraft.pages.dev/visual-lab
 
 ## Rollback
 
-Use Cloudflare Pages → `patchcraft-m1` → Deployments to roll back to a known good
+Use Cloudflare Pages → `patchcraft` → Deployments to roll back to a known good
 production deployment. Revert the problematic commit on `main` through a PR so
 the next automated deployment preserves that correction. A rollback affects the
 static frontend only.
@@ -53,7 +59,7 @@ References: [Cloudflare Direct Upload CI](https://developers.cloudflare.com/page
 
 ## Visible build version
 
-All three pages show a compact version badge in the footer. `package.json` is the
+All app pages show a compact version badge in the footer. `package.json` is the
 version source. Main builds are labeled `v<version> · dev`, followed by a short
 commit link; CI passes the full commit SHA into the Compose build.
 The same metadata is published as `/build-info.json`.

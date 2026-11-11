@@ -1,10 +1,11 @@
 import { mountBuildInfo } from './build-info';
+import './brand.css';
 import './style.css';
 import { AudioEngine } from './audio/engine';
 
 // A single-purpose local audio test surface.
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<header><a class="brand" href="/">◈ PATCHCRAFT <span>YNY LABS</span></a><a href="/vision.html">Camera → MIDI controls ↗</a><span class="tag">LIVE AUDIO</span></header>
+<header><a class="brand" href="/" aria-label="Patchcraft home"><img src="/patchcraft-mark.svg" alt=""> PATCHCRAFT</a><a href="/visual-lab">Visual Signal Lab ↗</a><span class="tag">LIVE AUDIO</span></header>
 <main>
   <div class="intro"><p class="eyebrow">PLUG IN. PLAY. MEASURE.</p><h1>Your guitar.<br><em>A clearer signal.</em></h1>
   <p>Test a live browser audio chain with your own interface.<br>Audio stays on this device.</p></div>
@@ -29,12 +30,12 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <label class="slider">Wet mix <output id="wet-value">50%</output><input id="wet" type="range" min="0" max="100" value="50"></label>
     <div class="toggles"><label><input id="bypass" type="checkbox" checked> Bypass effect</label><label><input id="mute" type="checkbox"> Mute output</label></div>
     <p class="hint">Bypass keeps the safe output level. It does not bypass browser or interface latency. Space toggles mute outside form controls.</p>
-    <label class="meter-label">Input peak <meter id="peak" min="0" max="1" low="0.01" high="0.9" optimum="0.4" value="0"></meter><span id="peak-value">—</span></label>
+    <label class="meter-label">Input peak <meter id="peak" min="0" max="1" low="0.01" high="0.9" optimum="0.4" value="0"></meter><span id="peak-value">-</span></label>
   </section>
   <section class="panel diagnostics"><div class="section-title"><span>03 / DIAGNOSTICS</span><button id="export" class="text-button">Export report ↓</button></div>
     <div class="metrics">
-      <div><p>Browser base latency</p><strong id="base">—</strong><small>API-reported · excludes input path</small></div>
-      <div><p>Browser output latency</p><strong id="out-latency">—</strong><small>API-reported · support varies</small></div>
+      <div><p>Browser base latency</p><strong id="base">-</strong><small>API-reported · excludes input path</small></div>
+      <div><p>Browser output latency</p><strong id="out-latency">-</strong><small>API-reported · support varies</small></div>
       <div class="physical"><p>Physical round-trip</p><strong>Not measured</strong><small>Requires wired loopback test below</small></div>
     </div>
     <dl id="details"></dl>
@@ -199,10 +200,10 @@ function renderDiagnostics() {
   const telemetryAge = engine.lastTelemetry ? now - engine.lastTelemetry : undefined;
   const rows: Record<string, string> = {
     'Audio state': context?.state ?? 'stopped',
-    'Actual context sample rate': context ? `${context.sampleRate} Hz` : '—',
+    'Actual context sample rate': context ? `${context.sampleRate} Hz` : '-',
     'Capture sample rate': engine.settings?.sampleRate ? `${engine.settings.sampleRate} Hz` : 'Not reported / sample',
-    'Capture processing': engine.settings ? `Echo ${engine.settings.echoCancellation ?? '?'} / noise ${engine.settings.noiseSuppression ?? '?'} / AGC ${engine.settings.autoGainControl ?? '?'}` : '—',
-    'Session duration': context ? `${((now - sessionStarted) / 1000).toFixed(0)} s` : '—',
+    'Capture processing': engine.settings ? `Echo ${engine.settings.echoCancellation ?? '?'} / noise ${engine.settings.noiseSuppression ?? '?'} / AGC ${engine.settings.autoGainControl ?? '?'}` : '-',
+    'Session duration': context ? `${((now - sessionStarted) / 1000).toFixed(0)} s` : '-',
     'Worklet render blocks': `${telemetry?.blocks ?? 0}`,
     'Render frame discontinuities': `${telemetry?.frameGaps ?? 0} (not physical glitches)`,
     'Input clipped / invalid samples': `${telemetry?.clippedSamples ?? 0} / ${telemetry?.invalidSamples ?? 0}`,
