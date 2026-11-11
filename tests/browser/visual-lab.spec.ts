@@ -23,7 +23,7 @@ test('local visual lab previews image stages, offers a blank recipe canvas and J
   await expect(page.getByText('Start with a clean image.')).toBeVisible();
   await page.getByLabel('Recipe name').fill('Red motion test');
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download JSON' }).click();
+  await page.getByRole('button', { name: 'Download recipe JSON' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe('red-motion-test.json');
   const imported = { schemaVersion: 1, id: 'imported-demo', name: 'Imported Demo', tagline: 'Loaded locally.', description: 'A test recipe.', image: { stages: [] }, weights: { brightness: 0.4, red: 0.4, motion: 0.2 }, midi: { cc: 74, channel: 1 }, target: 'Filter', steps: [] };
