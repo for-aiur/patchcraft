@@ -3,11 +3,16 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  release:
+    types: [published]
 permissions:
   contents: read
 jobs:
   tests:
     runs-on: ubuntu-latest
+    env:
+      PATCHCRAFT_BUILD_SHA: ${{ github.sha }}
+      PATCHCRAFT_RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Build test image
@@ -15,10 +20,10 @@ jobs:
       - name: Type check, production build, unit and browser tests
         run: docker compose run -T --name patchcraft-ci-tests tests
       - name: Extract tested static build
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: (github.ref == 'refs/heads/main' && github.event_name != 'pull_request') || github.event_name == 'release'
         run: docker cp patchcraft-ci-tests:/app/dist ./dist
       - name: Save tested static build
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: (github.ref == 'refs/heads/main' && github.event_name != 'pull_request') || github.event_name == 'release'
         uses: actions/upload-artifact@v4
         with:
           name: static-site-${{ github.sha }}
@@ -34,7 +39,7 @@ jobs:
   deploy:
     name: Deploy Cloudflare Pages
     needs: tests
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: (github.ref == 'refs/heads/main' && github.event_name != 'pull_request') || github.event_name == 'release'
     runs-on: ubuntu-latest
     concurrency:
       group: cloudflare-pages-production
@@ -46,6 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Skip superseded main builds
         id: current
+        if: github.event_name != 'release'
         env:
           BUILD_SHA: ${{ github.sha }}
         run: |
@@ -57,8 +63,12 @@ jobs:
             echo 'deploy=false' >> "$GITHUB_OUTPUT"
             echo 'A newer main commit exists; skipping this deployment.' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Select published release
+        id: release
+        if: github.event_name == 'release'
+        run: echo 'deploy=true' >> "$GITHUB_OUTPUT"
       - name: Check Cloudflare credentials
-        if: steps.current.outputs.deploy == 'true'
+        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -68,18 +78,18 @@ jobs:
             exit 1
           fi
       - name: Download tested static build
-        if: steps.current.outputs.deploy == 'true'
+        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         uses: actions/download-artifact@v4
         with:
           name: static-site-${{ github.sha }}
           path: dist/
       - uses: actions/setup-node@v4
-        if: steps.current.outputs.deploy == 'true'
+        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         with:
           node-version: '22'
       - name: Deploy tested build
         id: publish
-        if: steps.current.outputs.deploy == 'true'
+        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -87,7 +97,7 @@ jobs:
           wranglerVersion: '4.158.0'
           command: pages deploy dist --project-name patchcraft-m1 --branch main --commit-dirty=true
       - name: Verify deployment
-        if: steps.current.outputs.deploy == 'true'
+        if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         env:
           DEPLOYMENT_URL: ${{ steps.publish.outputs.deployment-url }}
         run: |

@@ -52,6 +52,10 @@ test('camera remains a live input for the same MIDI output path', async ({ brows
   await page.getByRole('button', { name: 'Start MIDI output' }).click();
   await expect(page.locator('#midi-state')).toHaveText('SENDING');
   await expect.poll(() => page.evaluate(() => (window as unknown as { cameraMidiMessages: number[][] }).cameraMidiMessages.length)).toBeGreaterThan(0);
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.waitForTimeout(1200);
+  await expect(page.locator('#midi-state')).toHaveText('SENDING');
+  expect(await page.locator('#video').evaluate(video => (video as HTMLVideoElement).srcObject !== null)).toBeTruthy();
   await page.getByRole('button', { name: 'Stop camera' }).click();
   await expect(page.locator('#midi-state')).toHaveText('STOPPED');
   await expect(page.locator('#camera-status')).toContainText('Camera stopped');

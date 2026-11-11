@@ -1,3 +1,4 @@
+import { mountBuildInfo } from './build-info';
 import './vision.css';
 import { CameraInput, type CameraSample } from './vision/camera';
 import { ControlGraph, starter, validatePatch, type Patch, type Signal } from './control/patch';
@@ -36,7 +37,7 @@ document.querySelector('#app')!.innerHTML = `
       <div class="actions"><button id="midi-toggle" class="primary">Start MIDI output</button></div>
       <p id="midi-status" class="status" role="status">Stopped. No MIDI messages are being sent.</p>
       <div class="notice"><strong>Assign in your DAW or plugin</strong><ol><li>Open the parameter's MIDI assignment mode in the receiving app.</li><li>Start MIDI output here, then move the camera signal or simulator.</li><li>The receiving app assigns the selected CC. You can use one CC for multiple parameters.</li></ol></div>
-      <p class="hint">Only applications connected to the selected MIDI port receive this signal. If the camera stops, the page is hidden, or the MIDI device disconnects, sending stops until you start it again.</p>
+      <p class="hint">Only applications connected to the selected MIDI port receive this signal. Switching to your instrument keeps sending. Temporary camera stalls wait for fresh frames. Stop or MIDI disconnection requires starting again.</p>
     </section>
     <section class="panel wide diagnostics"><div class="section-title"><span>STATUS</span></div><p id="diagnostics" class="mini-metrics">Choose a signal source and MIDI output to begin.</p><p class="budget">Displayed timings cover browser processing and MIDI send calls. They do not measure physical camera-to-plugin response or audio round-trip latency.</p></section>
   </div>
@@ -86,8 +87,7 @@ function drawRoi() {
   Object.assign($('roi-box').style, { left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.width * 100}%`, height: `${r.height * 100}%` });
 }
 function processFeatures(values: Features, at: number, source: 'camera' | 'simulator', sample?: CameraSample) {
-  if (document.hidden) { disarm('Page hidden. Start MIDI output again when the page is visible.'); return; }
-  if (source === 'camera' && (!sample || performance.now() - sample.capturedAt > 500)) { disarm('Camera signal is stale. Restart the camera and MIDI output.'); return; }
+  if (source === 'camera' && (!sample || performance.now() - sample.capturedAt > 500)) { return; }
   try {
     const result = graph.evaluate(values, at)[0];
     if (!result) return;
@@ -228,7 +228,6 @@ $('midi-toggle').addEventListener('click', async () => {
   if (midi.armed) { disarm('Stopped. The receiving app keeps its last value.'); return; }
   try {
     if (!midiAccess) await enableMidi();
-    if (document.hidden) throw new Error('Keep this tab visible while sending MIDI.');
     if (select('source').value === 'camera' && (!camera.stream || !lastSample || performance.now() - lastSample.capturedAt > 500)) throw new Error('Start the camera and wait for a fresh signal first.');
     if (select('source').value === 'simulator') tickSimulator();
     if (!select('midi-output').value) throw new Error('MIDI is ready. Choose an output port, then start MIDI output.');
@@ -246,7 +245,7 @@ $('midi-toggle').addEventListener('click', async () => {
   } catch (error) { disarm(error instanceof Error ? error.message : String(error)); }
 });
 
-document.addEventListener('visibilitychange', () => { if (document.hidden) disarm('Page hidden. Start MIDI output again when visible.'); });
+
 window.addEventListener('pagehide', () => { disarm('Page closed.'); camera.stop(); clearInterval(simulatorTimer); });
 ensureSimulator();
 if (!window.isSecureContext || !navigator.mediaDevices) { $<HTMLButtonElement>('camera-start').disabled = true; say('camera-status', 'Use HTTPS or localhost in a supported desktop browser.'); }
@@ -254,6 +253,12 @@ drawRoi();
 renderValues('simulator');
 syncOutputState();
 setInterval(() => {
-  if (select('source').value === 'camera' && midi.armed && (!lastSample || performance.now() - lastSample.capturedAt > 500)) disarm('Camera signal is stale. Sending stopped.');
+  if (midi.armed && midi.port?.state !== 'connected') disarm('MIDI disconnected. Select a port and start again.');
+  if (select('source').value === 'camera' && midi.armed && (!lastSample || performance.now() - lastSample.capturedAt > 500)) {
+    say('midi-state', 'WAITING FOR FRAMES');
+    say('midi-status', 'No fresh camera frames: no MIDI is sent. Sending resumes when fresh frames return. Stop cancels output.');
+  } else syncOutputState();
   renderValues();
 }, 250);
+
+mountBuildInfo();
