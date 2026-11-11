@@ -19,8 +19,8 @@
 </p>
 
 Patchcraft reads a camera or video in your browser, turns visual changes into
-control signals, and sends those signals as MIDI CC messages to music software.
-Your instrument audio stays in its usual signal path.
+control signals, and uses them to control MIDI gear or built-in audio effects.
+In MIDI mode, your instrument audio stays in its usual signal path.
 
 ## What you can do
 
@@ -31,10 +31,19 @@ Your instrument audio stays in its usual signal path.
   calibration, and smoothing.
 - Map signals to MIDI CC numbers and channels, then assign them to parameters in
   a DAW or plugin using its MIDI Learn feature.
+- Play guitar or another audio input through a chain of browser effects. Assign a named
+  signal to each effect, and reuse the same signal across effects. Use Demo tone to try it without an audio interface.
 - Save and share recipes as JSON files.
 
 Image processing runs in the browser. Camera frames and local video files are
-not uploaded by the static app.
+not uploaded by the static app. Live audio also stays in the browser.
+
+In **Audio Effects**, select **Find audio devices** and allow microphone access
+to list the inputs and outputs exposed by your browser. On macOS, use the built-in
+microphone or a Core Audio interface. On Windows, use an interface exposed in
+Windows Sound. When the browser cannot select an output, use the system output.
+Start at low volume with wired headphones. Browser latency estimates do not
+measure the physical round trip.
 
 ## Developers
 
@@ -60,6 +69,7 @@ docker compose run --rm tests
 - `src/vision/` contains camera input and visual processing.
 - `src/control/` contains signal and mapping logic.
 - `src/midi/` contains MIDI output.
+- `src/audio/` contains audio monitoring and the effect catalog.
 - `src/recipes/` contains built-in visual recipes.
 - `tests/` contains automated checks.
 
