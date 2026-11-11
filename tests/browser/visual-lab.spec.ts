@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-test('local visual lab previews image stages, offers a blank recipe canvas and JSON round trips', async ({ page }) => {
+test('local visual lab previews image stages, offers a blank patch canvas and patch JSON round trips', async ({ page }) => {
   await page.goto('/visual-lab.html');
   await expect(page.locator('.site-brand')).toBeVisible();
-  await page.getByText('Recipe guide', { exact: true }).click();
+  await page.getByText('Patch guide', { exact: true }).click();
   await expect(page.locator('#video-file')).toHaveAttribute('accept', 'video/*');
   await expect(page.getByLabel('Loop', { exact: true })).toBeChecked();
   await expect(page.locator('#preview')).toHaveAttribute('controls', '');
@@ -18,27 +18,31 @@ test('local visual lab previews image stages, offers a blank recipe canvas and J
   await page.getByRole('button', { name: 'Add stage' }).click();
   await expect(page.locator('#pipeline-stages .stage-card')).toHaveCount(5);
   await page.locator('#recipe-select').selectOption('__blank');
-  await expect(page.locator('#recipe-title')).toHaveText('Untitled recipe');
+  await expect(page.locator('#recipe-title')).toHaveText('Untitled patch');
   await expect(page.locator('#pipeline-stages .stage-card')).toHaveCount(0);
   await expect(page.getByText('Start with a clean image.')).toBeVisible();
-  await page.getByLabel('Recipe name').fill('Red motion test');
+  await page.getByLabel('Patch name').fill('Red motion test');
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Download recipe JSON' }).click();
+  await page.getByRole('button', { name: 'Export patch' }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('red-motion-test.json');
-  const imported = { schemaVersion: 1, id: 'imported-demo', name: 'Imported Demo', tagline: 'Loaded locally.', description: 'A test recipe.', image: { stages: [] }, weights: { brightness: 0.4, red: 0.4, motion: 0.2 }, midi: { cc: 74, channel: 1 }, target: 'Filter', steps: [] };
+  expect(download.suggestedFilename()).toBe('patchcraft-patch-red-motion-test.json');
+  const path = await download.path();
+  expect(path).toBeTruthy();
+  const fs = await import('node:fs/promises');
+  const imported = JSON.parse(await fs.readFile(path!, 'utf8'));
+  expect(imported).toMatchObject({ schemaVersion: 1, name: 'Red motion test', image: { stages: [] } });
   await page.locator('#recipe-file').setInputFiles({ name: 'invalid.json', mimeType: 'application/json', buffer: Buffer.from('{"schemaVersion":99}') });
   await expect(page.locator('#recipe-status')).toContainText('Unsupported recipe schema version');
   await expect(page.locator('#recipe-title')).toHaveText('Red motion test');
   await page.locator('#recipe-file').setInputFiles({ name: 'imported-demo.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) });
-  await expect(page.locator('#recipe-name')).toHaveValue('Imported Demo');
-  await expect(page.locator('#recipe-status')).toContainText('MIDI is stopped');
+  await expect(page.locator('#recipe-name')).toHaveValue('Red motion test');
+  await expect(page.locator('#recipe-status')).toContainText('Patch imported');
   await expect(page.locator('#source-status')).toContainText('Video stays in this browser');
 });
 
 test('each image stage updates its own live preview from the same source frame', async ({ page }) => {
   await page.goto('/visual-lab.html');
-  await page.getByRole('button', { name: 'Play demo scene' }).click();
+  await page.getByRole('button', { name: 'Demo scene' }).click();
   await expect(page.locator('#pipeline-state')).toContainText('Analyzing', { timeout: 10_000 });
   await expect(page.locator('#pipeline-stages .stage-preview.has-frame')).toHaveCount(4);
   await expect(page.locator('#processed-preview')).toBeVisible();
@@ -51,7 +55,7 @@ test('every recipe processes live frames and produces finite raw and calibrated 
   const ids = await page.locator('#recipe-select option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value).filter(id => id !== '__blank'));
   for (const id of ids) {
     await page.locator('#recipe-select').selectOption(id);
-    await page.getByRole('button', { name: 'Play demo scene', exact: true }).click();
+    await page.getByRole('button', { name: 'Demo scene', exact: true }).click();
     const count = await page.locator('.stage-card').count();
     await expect(page.locator('.stage-preview.has-frame')).toHaveCount(count, { timeout: 15_000 });
     await expect(page.locator('#pipeline-state')).toContainText('Analyzing');
@@ -80,6 +84,7 @@ test('hidden-page control survives missing animation callbacks and temporary vid
   await page.locator('#midi-output').evaluate(select => select.add(new Option('Background test', 'background-test')));
   await page.locator('#midi-output').selectOption('background-test');
   await page.locator('#midi-toggle').click();
+  await expect(page.locator('#midi-state')).toHaveText('SENDING');
   await expect.poll(count).toBeGreaterThan(0);
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
@@ -100,7 +105,7 @@ test('hidden-page control survives missing animation callbacks and temporary vid
   expect(await count()).toBe(stopped);
 });
 
-test('full recipe export preserves all CC destinations and restores MIDI disarmed', async ({ page }) => {
+test('workspace export preserves CC destinations and restores MIDI disarmed', async ({ page }) => {
   await page.goto('/visual-lab.html');
   await page.locator('#recipe-select').selectOption('motion-pulse');
   await page.locator('#add-cc-route').click();
@@ -109,20 +114,22 @@ test('full recipe export preserves all CC destinations and restores MIDI disarme
   await routes.nth(1).locator('.route-channel').fill('2');
   await routes.nth(1).locator('.route-enabled').uncheck();
   const downloadPromise = page.waitForEvent('download');
-  await page.locator('#save-recipe').click();
+  await page.locator('#save-workspace').click();
   const download = await downloadPromise;
   const path = await download.path();
   expect(path).toBeTruthy();
   const fs = await import('node:fs/promises');
   const saved = JSON.parse(await fs.readFile(path!, 'utf8'));
-  expect(saved.midiRoutes).toHaveLength(2);
-  expect(saved.midiRoutes[0]).toMatchObject({ signalId: 'scene-energy', cc: 21, channel: 1, min: 0, max: 127, enabled: true });
-  expect(saved.midiRoutes[1]).toMatchObject({ signalId: 'scene-energy', cc: 22, channel: 2, min: 0, max: 127, enabled: false });
-  await page.locator('#recipe-file').setInputFiles({ name: 'multi-route.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
+  expect(saved).toMatchObject({ format: 'patchcraft-visual-workspace', workspaceVersion: 1, name: 'Untitled workspace' });
+  expect(saved.recipe.midiRoutes).toHaveLength(2);
+  expect(saved.recipe.midiRoutes[0]).toMatchObject({ signalId: 'scene-energy', cc: 21, channel: 1, min: 0, max: 127, enabled: true });
+  expect(saved.recipe.midiRoutes[1]).toMatchObject({ signalId: 'scene-energy', cc: 22, channel: 2, min: 0, max: 127, enabled: false });
+  await page.locator('#workspace-file').setInputFiles({ name: 'multi-route.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
   await expect(page.locator('.cc-route')).toHaveCount(2);
   await expect(routes.nth(1).locator('.route-cc')).toHaveValue('22');
   await expect(routes.nth(1).locator('.route-channel')).toHaveValue('2');
   await expect(routes.nth(1).locator('.route-enabled')).not.toBeChecked();
+  await expect(routes.nth(0).locator('.route-enabled')).not.toBeChecked();
   await expect(page.locator('#midi-state')).toHaveText('MIDI off');
 });
 
@@ -156,18 +163,18 @@ test('named signal tabs keep independent measured inputs and project mappings li
   await mappings.nth(1).locator('.route-signal').selectOption({ label: 'Motion macro' });
   await mappings.nth(1).locator('.route-cc').fill('23');
   const downloadPromise = page.waitForEvent('download');
-  await page.locator('#save-recipe').click();
+  await page.locator('#save-workspace').click();
   const download = await downloadPromise;
   const savedPath = await download.path();
   const fs = await import('node:fs/promises');
   const saved = JSON.parse(await fs.readFile(savedPath!, 'utf8'));
-  expect(saved.controlSignals).toHaveLength(2);
-  expect(saved.controlSignals[0].name).toBe('Color Focus');
-  expect(saved.controlSignals[1]).toMatchObject({ name: 'Motion macro', inputs: expect.arrayContaining([expect.objectContaining({ source: sourceOptions[0], weight: 0.7 })]) });
-  expect(saved.midiRoutes[1]).toMatchObject({ signalId: saved.controlSignals[1].id, cc: 23 });
-  await page.locator('#recipe-file').setInputFiles({ name: 'signal-project.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
+  expect(saved.recipe.controlSignals).toHaveLength(2);
+  expect(saved.recipe.controlSignals[0].name).toBe('Color Focus');
+  expect(saved.recipe.controlSignals[1]).toMatchObject({ name: 'Motion macro', inputs: expect.arrayContaining([expect.objectContaining({ source: sourceOptions[0], weight: 0.7 })]) });
+  expect(saved.recipe.midiRoutes[1]).toMatchObject({ signalId: saved.recipe.controlSignals[1].id, cc: 23 });
+  await page.locator('#workspace-file').setInputFiles({ name: 'signal-project.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(saved)) });
   await expect(page.getByRole('tab')).toHaveCount(2);
   await expect(page.locator('.cc-route')).toHaveCount(2);
-  await expect(page.locator('.cc-route').nth(1).locator('.route-signal')).toHaveValue(saved.controlSignals[1].id);
+  await expect(page.locator('.cc-route').nth(1).locator('.route-signal')).toHaveValue(saved.recipe.controlSignals[1].id);
   await expect(page.locator('#midi-state')).toHaveText('MIDI off');
 });
