@@ -84,7 +84,7 @@ test('hidden-page control survives missing animation callbacks and temporary vid
   await page.locator('#add-cc-route').click();
   await expect(page.locator('.cc-route')).toHaveCount(1);
   await page.locator('#midi-toggle').click();
-  await expect(page.locator('#midi-status')).toContainText('MIDI ports loaded');
+  await expect(page.locator('#midi-output option[value="background-test"]')).toHaveCount(1);
   await page.locator('#midi-output').selectOption('background-test');
   await page.locator('#midi-toggle').click();
   await expect(page.locator('#midi-state')).toHaveText('SENDING');
