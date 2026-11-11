@@ -30,6 +30,6 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       ${isSupport ? '<a class="issue-link" href="https://github.com/for-aiur/patchcraft/issues">For now, report a problem on GitHub <span aria-hidden="true">↗</span></a>' : '<a class="issue-link" href="https://github.com/for-aiur/patchcraft">Browse the open-source project <span aria-hidden="true">↗</span></a>'}
     </section>
   </main>
-  <footer class="site-footer"><a class="footer-brand" href="/">PATCHCRAFT</a><span>Open source by YNY Labs</span><div class="footer-links"><a href="/about.html">About</a><a href="/support.html">Support</a><a href="https://github.com/for-aiur/patchcraft">GitHub</a></div></footer>`;
+  <footer class="site-footer"><a class="footer-brand" href="/">PATCHCRAFT</a><div class="footer-links"><a href="/about.html">About</a><a href="/support.html">Support</a><a href="https://github.com/for-aiur/patchcraft">GitHub</a></div></footer>`;
 
 mountBuildInfo();
