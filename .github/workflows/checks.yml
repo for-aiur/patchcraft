@@ -1,5 +1,8 @@
 name: Checks
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -10,7 +13,88 @@ jobs:
       - name: Build test image
         run: docker compose build tests
       - name: Type check, production build, unit and browser tests
-        run: docker compose run -T --rm tests
+        run: docker compose run -T --name patchcraft-ci-tests tests
+      - name: Extract tested static build
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: docker cp patchcraft-ci-tests:/app/dist ./dist
+      - name: Save tested static build
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: static-site-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
       - name: Clean up
         if: always()
-        run: docker compose down --volumes
+        run: |
+          docker rm -f patchcraft-ci-tests || true
+          docker compose down --volumes
+
+  deploy:
+    name: Deploy Cloudflare Pages
+    needs: tests
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloudflare-pages-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://patchcraft-m1.pages.dev/visual-lab
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip superseded main builds
+        id: current
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          latest_sha=$(git ls-remote origin refs/heads/main | cut -f1)
+          test -n "$latest_sha"
+          if [ "$latest_sha" = "$BUILD_SHA" ]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'deploy=false' >> "$GITHUB_OUTPUT"
+            echo 'A newer main commit exists; skipping this deployment.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Check Cloudflare credentials
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo '::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID to repository or production environment secrets. See docs/deployment.md.'
+            exit 1
+          fi
+      - name: Download tested static build
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: static-site-${{ github.sha }}
+          path: dist/
+      - uses: actions/setup-node@v4
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          node-version: '22'
+      - name: Deploy tested build
+        id: publish
+        if: steps.current.outputs.deploy == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.158.0'
+          command: pages deploy dist --project-name patchcraft-m1 --branch main --commit-dirty=true
+      - name: Verify deployment
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          DEPLOYMENT_URL: ${{ steps.publish.outputs.deployment-url }}
+        run: |
+          test -n "$DEPLOYMENT_URL"
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 3 --retry-all-errors "$DEPLOYMENT_URL/visual-lab" -o /tmp/visual-lab.html
+          asset=$(sed -n 's/.*src="\([^"]*visualLab-[^"]*\.js\)".*/\1/p' /tmp/visual-lab.html)
+          test -n "$asset"
+          grep -F "$asset" dist/visual-lab.html
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 --retry-all-errors "$DEPLOYMENT_URL$asset" -o /dev/null
+          echo "Deployed $GITHUB_SHA: $DEPLOYMENT_URL/visual-lab" >> "$GITHUB_STEP_SUMMARY"
