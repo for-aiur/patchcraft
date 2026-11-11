@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('local visual lab previews image stages, offers a blank recipe canvas and JSON round trips', async ({ page }) => {
   await page.goto('/visual-lab.html');
-  await expect(page.locator('.brand')).toBeVisible();
+  await expect(page.locator('.site-brand')).toBeVisible();
   await page.getByText('Recipe guide', { exact: true }).click();
   await expect(page.locator('#video-file')).toHaveAttribute('accept', 'video/*');
   await expect(page.getByLabel('Loop', { exact: true })).toBeChecked();
