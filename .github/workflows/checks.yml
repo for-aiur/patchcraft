@@ -98,7 +98,7 @@ jobs:
           command: pages deploy dist --project-name patchcraft --branch yildirimmehmet82/yny-19-build-public-product-website-guided --commit-dirty=true
       - name: Verify preview
         env:
-          DEPLOYMENT_URL: ${{ steps.publish.outputs.deployment-url }}
+          DEPLOYMENT_URL: ${{ steps.publish.outputs.pages-deployment-alias-url }}
         run: |
           test -n "$DEPLOYMENT_URL"
           for route in / /visual-lab /about.html /support.html; do
@@ -169,7 +169,7 @@ jobs:
       - name: Verify deployment
         if: steps.current.outputs.deploy == 'true' || steps.release.outputs.deploy == 'true'
         env:
-          DEPLOYMENT_URL: ${{ steps.publish.outputs.deployment-url }}
+          DEPLOYMENT_URL: https://patchcraft.pages.dev
         run: |
           test -n "$DEPLOYMENT_URL"
           curl --fail --silent --show-error --location --retry 5 --retry-delay 3 --retry-all-errors "$DEPLOYMENT_URL/visual-lab" -o /tmp/visual-lab.html
